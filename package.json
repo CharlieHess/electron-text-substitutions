@@ -2,7 +2,7 @@
   "name": "electron-text-substitutions",
   "version": "0.0.1",
   "description": "Substitute text in an input field based on OS X System Preferences",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
     "compile": "babel -d lib/ src/",
     "prepublish": "npm run compile",
@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "babel-runtime": "^6.9.2",
+    "debug": "^2.2.0",
     "lodash": "^4.13.1"
   }
 }
