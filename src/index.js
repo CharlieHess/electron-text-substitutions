@@ -3,8 +3,17 @@ import {remote} from 'electron';
 import {substituteText, getSubstitutionRegex} from './text-substitution';
 
 const d = require('debug')('electron-text-substitutions');
-const userDefaultsTextSubstitutionKey = 'NSUserDictionaryReplacementItems';
+const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
 
+/**
+ * Adds an `input` event listener to the given element (an <input> or
+ * <textarea>) that will substitute text based on the user's replacements in
+ * `NSUserDefaults`.
+ *
+ * @param  {EventTarget} element        The DOM node to listen to; should fire the `input` event
+ * @param  {Array} replacementOverrides Used to supply substitutions in testing
+ * @return {Function}                   A method that will unsubscribe the listener
+ */
 export default function performTextSubstitution(element, replacementOverrides = null) {
   if (!element || !element.addEventListener) throw new Error(`Element is null or not an EventTarget`);
 
@@ -20,7 +29,9 @@ export default function performTextSubstitution(element, replacementOverrides = 
       };
     });
 
-  d(`Created ${substitutions.length} regular expressions to match against`);
+  d(`Matching against ${substitutions.length} regular expressions`);
+
+  if (substitutions.length === 0) return () => { };
 
   let listener = () => {
     element.value = reduce(substitutions, (output, {regex, replacement}) => {
@@ -36,6 +47,11 @@ export default function performTextSubstitution(element, replacementOverrides = 
   };
 }
 
+/**
+ * Gets the user's text substitutions on OS X, after some error checking.
+ *
+ * @return {Array}  An array of replacement items
+ */
 function getDictionaryReplacementItems() {
   if (!process || !process.type === 'renderer') throw new Error(`Not in an Electron renderer context`);
   if (process.platform !== 'darwin') throw new Error(`Only supported on OS X`);
@@ -46,5 +62,5 @@ function getDictionaryReplacementItems() {
     throw new Error(`Electron ${process.versions.electron} is not supported`);
   }
 
-  return systemPreferences.getUserDefault(userDefaultsTextSubstitutionKey, 'array');
+  return systemPreferences.getUserDefault(userDefaultsTextSubstitutionsKey, 'array');
 }
