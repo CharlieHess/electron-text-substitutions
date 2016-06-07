@@ -29,4 +29,27 @@ describe('the performTextSubstitution method', () => {
     input.type('and more disapproval.');
     assert.equal(input.value, 'everything I do deserves… ಠ_ಠ and more disapproval.');
   });
+
+  it('should handle multiple substitutions at once', () => {
+    let input = new MockInput('');
+    let substitutions = [
+      { replace: 'disapproval', with: 'ಠ_ಠ' },
+      { replace: 'shrug', with: '¯\\_(ツ)_/¯' }
+    ];
+
+    performTextSubstitution(input, substitutions);
+
+    input.type('here is a shrug, and a gaze of disapproval.');
+    assert.equal(input.value, 'here is a ¯\\_(ツ)_/¯, and a gaze of ಠ_ಠ.');
+  });
+
+  it('should only substitute the first if multiple matches occur', () => {
+    let input = new MockInput('');
+    let substitutions = [{ replace: 'shrug', with: '¯\\_(ツ)_/¯' }];
+
+    performTextSubstitution(input, substitutions);
+
+    input.type('multiple shrug shrug shrug ');
+    assert.equal(input.value, 'multiple ¯\\_(ツ)_/¯ shrug shrug ');
+  });
 });
