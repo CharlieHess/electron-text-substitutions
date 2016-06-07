@@ -1,9 +1,9 @@
 import assert from 'assert';
-import {substituteText, getSubstitutionRegex} from '../src/text-substitution';
+import {substituteText, getSubstitutionRegExp} from '../src/text-substitution';
 
-describe('the getSubstitutionRegex method', () => {
+describe('the getSubstitutionRegExp method', () => {
   it('should only match a word with a trailing boundary', () => {
-    let regex = getSubstitutionRegex('banana');
+    let regex = getSubstitutionRegExp('banana');
     let shouldMatch = [
       'banana ',
       'banana-',
@@ -33,7 +33,7 @@ describe('the getSubstitutionRegex method', () => {
     ];
 
     for (let {match, input} of candidates) {
-      let regex = getSubstitutionRegex(match);
+      let regex = getSubstitutionRegExp(match);
       assert(input.match(regex));
     }
   });
@@ -56,7 +56,7 @@ describe('the substituteText method', () => {
   it('should accept a regex or an input string', () => {
     let input = "knock knock. who's there?";
     let firstReplacement = 'knock knock';
-    let secondReplacement = getSubstitutionRegex("who's there");
+    let secondReplacement = getSubstitutionRegExp("who's there");
 
     let result = substituteText(input, firstReplacement, 'knick knack');
     assert.equal(result, "knick knack. who's there?");

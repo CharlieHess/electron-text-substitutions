@@ -12,7 +12,7 @@ import {isRegExp} from 'lodash';
 export function substituteText(input, toReplace, replacement) {
   let regex = isRegExp(toReplace) ?
     toReplace :
-    getSubstitutionRegex(toReplace);
+    getSubstitutionRegExp(toReplace);
 
   let replacementFormat = `$1${replacement}$3`;
 
@@ -26,7 +26,7 @@ export function substituteText(input, toReplace, replacement) {
  * @param  {String} toReplace The string being replaced
  * @return {RegExp}           A regular expression that will match `toReplace`
  */
-export function getSubstitutionRegex(toReplace) {
+export function getSubstitutionRegExp(toReplace) {
   // Recreate something like \b; we don't want to use \b because no Unicode
   // support.
   let wordBoundary = `[ \n\r\t.,'\"\+!?-]+`;

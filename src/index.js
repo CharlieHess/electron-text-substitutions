@@ -1,66 +1,115 @@
-import {reduce} from 'lodash';
+import {isEqual, reduce} from 'lodash';
 import {remote} from 'electron';
-import {substituteText, getSubstitutionRegex} from './text-substitution';
+import {Disposable, SerialDisposable, CompositeDisposable} from 'rx-lite';
+import {substituteText, getSubstitutionRegExp} from './text-substitution';
 
 const d = require('debug')('electron-text-substitutions');
 const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
+const userDefaultsChangedKey = 'NSUserDefaultsDidChangeNotification';
+
+let systemPreferences;
 
 /**
  * Adds an `input` event listener to the given element (an <input> or
  * <textarea>) that will substitute text based on the user's replacements in
  * `NSUserDefaults`.
  *
- * @param  {EventTarget} element        The DOM node to listen to; should fire the `input` event
- * @param  {Array} replacementOverrides Used to supply substitutions in testing
- * @return {Function}                   A method that will unsubscribe the listener
- */
-export default function performTextSubstitution(element, replacementOverrides = null) {
-  if (!element || !element.addEventListener) throw new Error(`Element is null or not an EventTarget`);
-
-  let replacementItems = replacementOverrides || getDictionaryReplacementItems() || [];
-  d(`Found ${replacementItems.length} items in NSUserDictionaryReplacementItems`);
-
-  let substitutions = replacementItems
-    .filter((substitution) => substitution.on !== false)
-    .map((substitution) => {
-      return {
-        regex: getSubstitutionRegex(substitution.replace),
-        replacement: substitution.with
-      };
-    });
-
-  d(`Matching against ${substitutions.length} regular expressions`);
-
-  if (substitutions.length === 0) return () => { };
-
-  let listener = () => {
-    element.value = reduce(substitutions, (output, {regex, replacement}) => {
-      return substituteText(output, regex, replacement);
-    }, element.value);
-  };
-
-  element.addEventListener('input', listener);
-
-  return () => {
-    element.removeEventListener('input', listener);
-    d(`Removed input event listener`);
-  };
-}
-
-/**
- * Gets the user's text substitutions on OS X, after some error checking.
+ * In addition, this method will listen for changes to `NSUserDefaults` and
+ * update accordingly.
  *
- * @return {Array}  An array of replacement items
+ * @param  {EventTarget} element          The DOM node to listen to; should fire the `input` event
+ * @param  {Array} substitutionOverrides  Used to supply substitutions in testing
+ *
+ * @return {Disposable}                   A `Disposable` that will clean up everything this method did
  */
-function getDictionaryReplacementItems() {
+export default function performTextSubstitution(element, substitutionOverrides = null) {
+  if (!element || !element.addEventListener) throw new Error(`Element is null or not an EventTarget`);
   if (!process || !process.type === 'renderer') throw new Error(`Not in an Electron renderer context`);
   if (process.platform !== 'darwin') throw new Error(`Only supported on OS X`);
 
-  const {systemPreferences} = remote;
+  systemPreferences = systemPreferences || remote.systemPreferences;
 
   if (!systemPreferences || !systemPreferences.getUserDefault) {
     throw new Error(`Electron ${process.versions.electron} is not supported`);
   }
 
-  return systemPreferences.getUserDefault(userDefaultsTextSubstitutionsKey, 'array');
+  let substitutions = systemPreferences.getUserDefault(userDefaultsTextSubstitutionsKey, 'array');
+  let replacementItems = getReplacementItems(substitutionOverrides || substitutions || []);
+
+  let inputEvent = new SerialDisposable();
+  inputEvent.setDisposable(addInputListener(element, replacementItems));
+
+  let changeHandlerId = systemPreferences.subscribeNotification(userDefaultsChangedKey, () => {
+    d(`Got an ${userDefaultsChangedKey}`);
+    let newSubstitutions = systemPreferences.getUserDefault(userDefaultsTextSubstitutionsKey, 'array');
+
+    if (!isEqual(substitutions, newSubstitutions)) {
+      d(`User modified ${userDefaultsTextSubstitutionsKey}, reattaching listener`);
+
+      let newReplacementItems = getReplacementItems(substitutionOverrides || substitutions || []);
+      inputEvent.setDisposable(addInputListener(element, newReplacementItems));
+    }
+  });
+
+  let changeHandlerDisposable = new Disposable(() => {
+    systemPreferences.unsubscribeNotification(changeHandlerId);
+  });
+
+  return new CompositeDisposable(inputEvent, changeHandlerDisposable);
+}
+
+/**
+ * @typedef {Object} TextSubstitution
+ * @property {String} replace The text to replace
+ * @property {String} with    The replacement text
+ * @property {Bool}   on      True if this substitution is enabled
+ */
+
+ /**
+  * @typedef {Object} ReplacementItem
+  * @property {String} regExp       A regular expression that matches the text to replace
+  * @property {String} replacement  The replacement text
+  */
+
+/**
+ * Gets the user's text substitutions on OS X, and creates a regular expression
+ * for each entry.
+ *
+ * @param  {Array<TextSubstitution>}  An array of text substitution entries
+ * @return {Array<ReplacementItem>}   An array of replacement items
+ */
+function getReplacementItems(substitutions) {
+  d(`Found ${substitutions.length} substitutions in NSUserDictionaryReplacementItems`);
+
+  return substitutions
+    .filter((substitution) => substitution.on !== false)
+    .map((substitution) => {
+      return {
+        regExp: getSubstitutionRegExp(substitution.replace),
+        replacement: substitution.with
+      };
+    });
+}
+
+/**
+ * Subscribes to the `input` event and performs text substitution.
+ *
+ * @param  {EventTarget} element                      The DOM node to listen to
+ * @param  {Array<ReplacementItem>} replacementItems  An array of replacement items
+ * @return {Disposable}                               A `Disposable` that will remove the listener
+ */
+function addInputListener(element, replacementItems) {
+  let listener = () => {
+    element.value = reduce(replacementItems, (output, {regExp, replacement}) => {
+      return substituteText(output, regExp, replacement);
+    }, element.value);
+  };
+
+  element.addEventListener('input', listener);
+  d(`Added input listener matching against ${replacementItems.length} replacements`);
+
+  return new Disposable(() => {
+    element.removeEventListener('input', listener);
+    d(`Removed input listener`);
+  });
 }
