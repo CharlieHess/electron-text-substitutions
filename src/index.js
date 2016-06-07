@@ -3,7 +3,7 @@ import {remote} from 'electron';
 import {Disposable, SerialDisposable, CompositeDisposable} from 'rx-lite';
 import {substituteText, getSubstitutionRegExp} from './text-substitution';
 
-const d = require('debug')('electron-text-substitutions');
+const d = require('debug/browser')('electron-text-substitutions');
 const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
 const userDefaultsChangedKey = 'NSUserDefaultsDidChangeNotification';
 

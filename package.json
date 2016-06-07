@@ -28,6 +28,7 @@
     "babel-register": "^6.9.0",
     "electron-mocha": "^2.2.0",
     "electron-prebuilt-compile": "^1.2.1",
+    "event-target-shim": "^1.1.1",
     "mocha": "^2.5.3"
   },
   "dependencies": {
