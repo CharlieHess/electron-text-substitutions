@@ -11,7 +11,10 @@ describe('the getSubstitutionRegExp method', () => {
       '-banana ',
       'banana\n',
       'banana\r.',
-      '\nbanana\t'
+      '\nbanana\t',
+      '‹banana›',
+      '«banana»',
+      '’banana–'
     ];
 
     let shouldNotMatch = [

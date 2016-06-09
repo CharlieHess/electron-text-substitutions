@@ -29,7 +29,7 @@ export function substituteText(input, toReplace, replacement) {
 export function getSubstitutionRegExp(toReplace) {
   // Recreate something like \b; we don't want to use \b because no Unicode
   // support.
-  let wordBoundary = `[ \n\r\t.,'\"\+!?-]+`;
+  let wordBoundary = `[ \n\r\t.,'\"\`\+!?«»“”„’‹›—–−-]+`; 
 
   // Capture the word boundaries along with the word to replace, so that we
   // can preserve existing whitespace when we do the replacement.
