@@ -1,9 +1,7 @@
-import {isEqual, reduce} from 'lodash';
+import {isEqual} from 'lodash';
 import {remote} from 'electron';
 import {Disposable, SerialDisposable, CompositeDisposable} from 'rx-lite';
-import {substituteText, getSubstitutionRegExp} from './text-substitution';
-import {replaceQuotes} from './smart-quotes';
-import {replaceDashes} from './smart-dashes';
+import {getSubstitutionRegExp} from './text-substitution';
 
 const d = require('debug-electron')('electron-text-substitutions');
 const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
