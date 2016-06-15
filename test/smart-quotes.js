@@ -21,6 +21,7 @@ describe('the replaceQuotes method', () => {
       { input: `can\'t `, output: `can’t ` },
 
       { input: `\"\'who?`, output: `“‘who?` },
+      { input: `here it is,\' `, output: `here it is,’ ` },
       { input: `\"O\'Doyle rules!\" `, output: `“O’Doyle rules!” ` },
       { input: `\"\'what\'s that,\' she said\" `, output: `“‘what’s that,’ she said” ` },
       { input: `end of one\" \"start of another`, output: `end of one” “start of another` }
