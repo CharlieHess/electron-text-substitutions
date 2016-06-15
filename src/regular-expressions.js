@@ -1,24 +1,3 @@
-import {isRegExp} from 'lodash';
-
-/**
- * Substitutes a text string for another in a given input string, preserving
- * whitespace around the string being replaced.
- *
- * @param  {String}         input         The input string
- * @param  {String|RegExp}  toReplace     The string being replaced, or a regex that will match it
- * @param  {String}         replacement   The replacement
- * @return {String}                       The output string
- */
-export function substituteText(input, toReplace, replacement) {
-  let regex = isRegExp(toReplace) ?
-    toReplace :
-    getSubstitutionRegExp(toReplace);
-
-  let replacementFormat = `$1${replacement}$2`;
-
-  return input.replace(regex, replacementFormat);
-}
-
 /**
  * Creates a regular expression that will match a word and its boundaries– that
  * is, some surrounding whitespace or separator character.
@@ -36,4 +15,19 @@ export function getSubstitutionRegExp(toReplace) {
   let atWordBoundary = `(^\|${wordBoundary})${toReplace}(${wordBoundary})`;
 
   return new RegExp(atWordBoundary);
+}
+
+/**
+ * Used on input to progressively replace straight quotes with curly quotes.
+ *
+ * @param  {String} input The input string
+ * @return {String}       The output string
+ */
+export function replaceQuotes(input) {
+  return input
+    .replace(/(\S)"([\S\s])/, '$1”$2')   // closing doubles
+    .replace(/"([\S\s])/, '“$1')         // opening doubles
+    .replace(/([\S\s])'(\s)/, '$1’$2')   // closing singles
+    .replace(/(\W|^)'([\w\s])/, '$1‘$2') // opening singles
+    .replace(/(\w)'(\w+\s)/, '$1’$2');   // contractions
 }
