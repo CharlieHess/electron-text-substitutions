@@ -108,14 +108,18 @@ function addInputListener(element, replacementItems) {
   let useSmartDashes = systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean');
 
   let listener = () => {
-    let result = reduce(replacementItems, (output, {regExp, replacement}) => {
-      return substituteText(output, regExp, replacement);
-    }, element.value);
+    for (let {regExp, replacement} of replacementItems) {
+      let match = element.value.match(regExp);
+      if (match) {
+        let selection = {
+          start: match.index,
+          end: match.index + match[0].length
+        };
 
-    if (useSmartQuotes) result = replaceQuotes(result);
-    if (useSmartDashes) result = replaceDashes(result);
-
-    element.value = result;
+        d(`Replacing ${match[0]} with ${replacement}`);
+        replaceText(element, selection, `${match[1]}${replacement}${match[2]}`);
+      }
+    }
   };
 
   element.addEventListener('input', listener);
@@ -128,4 +132,14 @@ function addInputListener(element, replacementItems) {
     element.removeEventListener('input', listener);
     d(`Removed input listener`);
   });
+}
+
+function replaceText(element, {start, end}, newText) {
+  let textEvent = document.createEvent('TextEvent');
+  textEvent.initTextEvent('textInput', true, true, null, newText);
+
+  element.selectionStart = start;
+  element.selectionEnd = end;
+
+  element.dispatchEvent(textEvent);
 }

@@ -14,7 +14,7 @@ export function substituteText(input, toReplace, replacement) {
     toReplace :
     getSubstitutionRegExp(toReplace);
 
-  let replacementFormat = `$1${replacement}$3`;
+  let replacementFormat = `$1${replacement}$2`;
 
   return input.replace(regex, replacementFormat);
 }
@@ -29,11 +29,11 @@ export function substituteText(input, toReplace, replacement) {
 export function getSubstitutionRegExp(toReplace) {
   // Recreate something like \b; we don't want to use \b because no Unicode
   // support.
-  let wordBoundary = `[ \n\r\t.,'\"\`\+!?«»“”„’‹›—–−-]+`; 
+  let wordBoundary = `[ \n\r\t.,'\"\`\+!?«»“”„’‹›—–−-]+`;
 
   // Capture the word boundaries along with the word to replace, so that we
   // can preserve existing whitespace when we do the replacement.
-  let atWordBoundary = `(^\|${wordBoundary})(${toReplace})(${wordBoundary})`;
+  let atWordBoundary = `(^\|${wordBoundary})${toReplace}(${wordBoundary})`;
 
   return new RegExp(atWordBoundary);
 }
