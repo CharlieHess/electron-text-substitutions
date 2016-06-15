@@ -2,9 +2,13 @@ import {isEqual, reduce} from 'lodash';
 import {remote} from 'electron';
 import {Disposable, SerialDisposable, CompositeDisposable} from 'rx-lite';
 import {substituteText, getSubstitutionRegExp} from './text-substitution';
+import {replaceQuotes} from './smart-quotes';
+import {replaceDashes} from './smart-dashes';
 
 const d = require('debug/browser')('electron-text-substitutions');
 const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
+const userDefaultsSmartQuotesKey = 'NSAutomaticQuoteSubstitutionEnabled';
+const userDefaultsSmartDashesKey = 'NSAutomaticDashSubstitutionEnabled';
 const userDefaultsChangedKey = 'NSUserDefaultsDidChangeNotification';
 
 let systemPreferences;
@@ -99,14 +103,25 @@ function getReplacementItems(substitutions) {
  * @return {Disposable}                               A `Disposable` that will remove the listener
  */
 function addInputListener(element, replacementItems) {
+  let useSmartQuotes = systemPreferences.getUserDefault(userDefaultsSmartQuotesKey, 'boolean');
+  let useSmartDashes = systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean');
+
   let listener = () => {
-    element.value = reduce(replacementItems, (output, {regExp, replacement}) => {
+    let result = reduce(replacementItems, (output, {regExp, replacement}) => {
       return substituteText(output, regExp, replacement);
     }, element.value);
+
+    if (useSmartQuotes) result = replaceQuotes(result);
+    if (useSmartDashes) result = replaceDashes(result);
+
+    element.value = result;
   };
 
   element.addEventListener('input', listener);
+
   d(`Added input listener matching against ${replacementItems.length} replacements`);
+  d(`Smart quotes are ${useSmartQuotes ? 'on' : 'off'}`);
+  d(`Smart dashes are ${useSmartDashes ? 'on' : 'off'}`);
 
   return new Disposable(() => {
     element.removeEventListener('input', listener);
