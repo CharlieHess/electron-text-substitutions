@@ -5,7 +5,7 @@ import {substituteText, getSubstitutionRegExp} from './text-substitution';
 import {replaceQuotes} from './smart-quotes';
 import {replaceDashes} from './smart-dashes';
 
-const d = require('debug/browser')('electron-text-substitutions');
+const d = require('debug-electron')('electron-text-substitutions');
 const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
 const userDefaultsSmartQuotesKey = 'NSAutomaticQuoteSubstitutionEnabled';
 const userDefaultsSmartDashesKey = 'NSAutomaticDashSubstitutionEnabled';
@@ -56,6 +56,7 @@ export default function performTextSubstitution(element, substitutionOverrides =
   });
 
   let changeHandlerDisposable = new Disposable(() => {
+    d(`Cleaning up all listeners`);
     systemPreferences.unsubscribeNotification(changeHandlerId);
   });
 
