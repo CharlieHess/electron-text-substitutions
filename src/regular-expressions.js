@@ -41,7 +41,7 @@ export function getSmartQuotesRegExp() {
   return [
     { regExp: /(\S)"([\S\s])/, replacement: closingDoubleQuote },
     { regExp: /()"([\S\s])/, replacement: openingDoubleQuote },
-    { regExp: /([\S\s])'(\s)/, replacement: closingSingleQuote },
+    { regExp: /([\S\s])'(\W)/, replacement: closingSingleQuote },
     { regExp: /(\W|^)'([\w\s])/, replacement: openingSingleQuote },
     { regExp: /(\w)'(\w+\s)/, replacement: closingSingleQuote }
   ];

@@ -71,9 +71,11 @@ describe('the getSmartQuotesRegExp method', () => {
 
       { input: `\"\'who?`, output: `“‘who?` },
       { input: `here it is,\' `, output: `here it is,’ ` },
+      { input: `O\'Doyle`, output: `O\'Doyle` },
       { input: `\"O\'Doyle rules!\" `, output: `“O’Doyle rules!” ` },
       { input: `\"\'what\'s that,\' she said\" `, output: `“‘what’s that,’ she said” ` },
-      { input: `end of one\" \"start of another`, output: `end of one” “start of another` }
+      { input: `end of one\" \"start of another`, output: `end of one” “start of another` },
+      { input: `\"\'nested\'\" `, output: `“‘nested’” ` }
     ]);
   });
 });
