@@ -4,6 +4,9 @@ export const closingSingleQuote = '\u2019'; // ’
 export const openingDoubleQuote = '\u201c'; // “
 export const closingDoubleQuote = '\u201d'; // ”
 
+export const emDash = '\u2014';             // —
+export const ellipsis = '\u2026';           // …
+
 /**
  * @typedef {Object} ReplacementItem
  * @property {String} regExp       A regular expression that matches the text to replace
@@ -44,8 +47,18 @@ export function getSmartQuotesRegExp() {
   ];
 }
 
+/**
+ * Returns an array of regular expressions that will replace hypens with
+ * em-dashes (and ellisis, as a bonus).
+ *
+ * @return {Array<ReplacementItem>}  An array of replacement items
+ */
 export function getSmartDashesRegExp() {
-  return [];
+  return [
+    { regExp: /(^|[^-])---([^-])/, replacement: emDash },
+    { regExp: /(^|[^-])--([^-])/, replacement: emDash },
+    { regExp: /(^|[\S\s])\.\.\.([\S\s])/, replacement: ellipsis }
+  ];
 }
 
 /**

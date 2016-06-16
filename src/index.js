@@ -69,8 +69,8 @@ export default function performTextSubstitution(element, substitutionOverrides =
  */
 
 /**
- * Gets the user's text substitutions on OS X, and creates a regular expression
- * for each entry.
+ * Creates a regular expression for each text substitution entry, in addition
+ * to expressions for smart quotes and dashes (if they're enabled).
  *
  * @param  {Array<TextSubstitution>}  An array of text substitution entries
  * @return {Array<ReplacementItem>}   An array of replacement items

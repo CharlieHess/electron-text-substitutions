@@ -1,5 +1,5 @@
 import assert from 'assert';
-import {getSubstitutionRegExp, getSmartQuotesRegExp} from '../src/regular-expressions';
+import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp} from '../src/regular-expressions';
 
 describe('the getSubstitutionRegExp method', () => {
   it('should only match a word with a trailing boundary', () => {
@@ -52,7 +52,7 @@ describe('the getSubstitutionRegExp method', () => {
 
 describe('the getSmartQuotesRegExp method', () => {
   it('should replace straight quotes with curly quotes', () => {
-    let testCases = [
+    assertRegExReplacements(getSmartQuotesRegExp(), [
       { input: `\"`, output: `\"` },
       { input: `\"\"`, output: `“\"` },
       { input: `“\"\"`, output: `“”\"` },
@@ -74,17 +74,38 @@ describe('the getSmartQuotesRegExp method', () => {
       { input: `\"O\'Doyle rules!\" `, output: `“O’Doyle rules!” ` },
       { input: `\"\'what\'s that,\' she said\" `, output: `“‘what’s that,’ she said” ` },
       { input: `end of one\" \"start of another`, output: `end of one” “start of another` }
-    ];
-
-    let replacements = getSmartQuotesRegExp();
-
-    for (let {input, output} of testCases) {
-
-      for (let {regExp, replacement} of replacements) {
-        input = input.replace(regExp, `$1${replacement}$2`);
-      }
-
-      assert.equal(input, output);
-    }
+    ]);
   });
 });
+
+describe('the getSmartDashesRegExp method', () => {
+  it('should replace consecutive hypens with an em-dash', () => {
+    assertRegExReplacements(getSmartDashesRegExp(), [
+      { input: `- `, output: `- ` },
+      { input: `--`, output: `--` },
+      { input: `-- `, output: `— ` },
+      { input: `---`, output: `---` },
+      { input: `--- `, output: `— ` },
+      { input: `\n---\n`, output: `\n—\n` }
+    ]);
+  });
+
+  it('should replace consecutive periods with an ellipsis', () => {
+    assertRegExReplacements(getSmartDashesRegExp(), [
+      { input: `...`, output: `...` },
+      { input: `... `, output: `… ` },
+      { input: `some text...more text`, output: `some text…more text` }
+    ]);
+  });
+});
+
+function assertRegExReplacements(replacementItems, testCases) {
+  for (let {input, output} of testCases) {
+
+    for (let {regExp, replacement} of replacementItems) {
+      input = input.replace(regExp, `$1${replacement}$2`);
+    }
+
+    assert.equal(input, output);
+  }
+}
