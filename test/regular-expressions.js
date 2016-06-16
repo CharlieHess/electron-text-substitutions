@@ -1,9 +1,9 @@
 import assert from 'assert';
-import {getSubstitutionRegExp, replaceQuotes} from '../src/regular-expressions';
+import {getSubstitutionRegExp, getSmartQuotesRegExp} from '../src/regular-expressions';
 
 describe('the getSubstitutionRegExp method', () => {
   it('should only match a word with a trailing boundary', () => {
-    let regex = getSubstitutionRegExp('banana');
+    let {regExp} = getSubstitutionRegExp('banana');
     let shouldMatch = [
       'banana ',
       'banana-',
@@ -24,8 +24,8 @@ describe('the getSubstitutionRegExp method', () => {
       'helpimtrappedina-bananafactory '
     ];
 
-    for (let candidate of shouldMatch) assert(candidate.match(regex));
-    for (let candidate of shouldNotMatch) assert(!candidate.match(regex));
+    for (let candidate of shouldMatch) assert(candidate.match(regExp));
+    for (let candidate of shouldNotMatch) assert(!candidate.match(regExp));
   });
 
   it('should match extended Unicode characters', () => {
@@ -36,21 +36,21 @@ describe('the getSubstitutionRegExp method', () => {
     ];
 
     for (let {match, input} of candidates) {
-      let regex = getSubstitutionRegExp(match);
-      assert(input.match(regex));
+      let {regExp} = getSubstitutionRegExp(match);
+      assert(input.match(regExp));
     }
   });
 
   it('should preserve whitespace around a match', () => {
     let input = "\n\n\tshrug   \n";
-    let regex = getSubstitutionRegExp('shrug');
-    let result = input.replace(regex, `$1¯\\_(ツ)_/¯$2`);
+    let {regExp} = getSubstitutionRegExp('shrug');
+    let result = input.replace(regExp, `$1¯\\_(ツ)_/¯$2`);
 
     assert.equal(result, "\n\n\t¯\\_(ツ)_/¯   \n");
   });
 });
 
-describe('the replaceQuotes method', () => {
+describe('the getSmartQuotesRegExp method', () => {
   it('should replace straight quotes with curly quotes', () => {
     let testCases = [
       { input: `\"`, output: `\"` },
@@ -76,8 +76,15 @@ describe('the replaceQuotes method', () => {
       { input: `end of one\" \"start of another`, output: `end of one” “start of another` }
     ];
 
+    let replacements = getSmartQuotesRegExp();
+
     for (let {input, output} of testCases) {
-      assert.equal(replaceQuotes(input), output);
+
+      for (let {regExp, replacement} of replacements) {
+        input = input.replace(regExp, `$1${replacement}$2`);
+      }
+
+      assert.equal(input, output);
     }
   });
 });

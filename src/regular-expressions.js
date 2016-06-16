@@ -1,33 +1,58 @@
+export const openingSingleQuote = '\u2018'; // ‘
+export const closingSingleQuote = '\u2019'; // ’
+
+export const openingDoubleQuote = '\u201c'; // “
+export const closingDoubleQuote = '\u201d'; // ”
+
+/**
+ * @typedef {Object} ReplacementItem
+ * @property {String} regExp       A regular expression that matches the text to replace
+ * @property {String} replacement  The replacement text
+ */
+
 /**
  * Creates a regular expression that will match a word and its boundaries– that
  * is, some surrounding whitespace or separator character.
  *
- * @param  {String} toReplace The string being replaced
- * @return {RegExp}           A regular expression that will match `toReplace`
+ * @param  {String} match     The string to match
+ * @return {ReplacementItem}  A replacement item; contains a `RegExp` and its replacement
  */
-export function getSubstitutionRegExp(toReplace) {
+export function getSubstitutionRegExp(match, replacement) {
   // Recreate something like \b; we don't want to use \b because no Unicode
   // support.
   let wordBoundary = `[ \n\r\t.,'\"\`\+!?«»“”„’‹›—–−-]+`;
 
-  // Capture the word boundaries along with the word to replace, so that we
-  // can preserve existing whitespace when we do the replacement.
-  let atWordBoundary = `(^\|${wordBoundary})${toReplace}(${wordBoundary})`;
+  // Capture the word boundaries to align with `formatReplacement`
+  let regExp = new RegExp(`(^\|${wordBoundary})${match}(${wordBoundary})`);
 
-  return new RegExp(atWordBoundary);
+  return { regExp, replacement };
 }
 
 /**
- * Used on input to progressively replace straight quotes with curly quotes.
+ * Returns an array of regular expressions that will progressively replace
+ * straight quotes with curly quotes.
  *
- * @param  {String} input The input string
- * @return {String}       The output string
+ * @return {Array<ReplacementItem>}  An array of replacement items
  */
-export function replaceQuotes(input) {
-  return input
-    .replace(/(\S)"([\S\s])/, '$1”$2')   // closing doubles
-    .replace(/"([\S\s])/, '“$1')         // opening doubles
-    .replace(/([\S\s])'(\s)/, '$1’$2')   // closing singles
-    .replace(/(\W|^)'([\w\s])/, '$1‘$2') // opening singles
-    .replace(/(\w)'(\w+\s)/, '$1’$2');   // contractions
+export function getSmartQuotesRegExp() {
+  return [
+    { regExp: /(\S)"([\S\s])/, replacement: closingDoubleQuote },
+    { regExp: /()"([\S\s])/, replacement: openingDoubleQuote },
+    { regExp: /([\S\s])'(\s)/, replacement: closingSingleQuote },
+    { regExp: /(\W|^)'([\w\s])/, replacement: openingSingleQuote },
+    { regExp: /(\w)'(\w+\s)/, replacement: closingSingleQuote }
+  ];
+}
+
+export function getSmartDashesRegExp() {
+  return [];
+}
+
+/**
+ * Preserves whitespace around the match. These expressions match the text
+ * being substituted along with boundaries on the left ($1) and right ($2).
+ */
+export function formatReplacement(match, replacement) {
+  let [, left, right] = match;
+  return `${left}${replacement}${right}`;
 }

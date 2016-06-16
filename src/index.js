@@ -1,7 +1,7 @@
 import {isEqual} from 'lodash';
 import {remote} from 'electron';
 import {Disposable, SerialDisposable, CompositeDisposable} from 'rx-lite';
-import {getSubstitutionRegExp} from './regular-expressions';
+import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp, formatReplacement} from './regular-expressions';
 
 const d = require('debug-electron')('electron-text-substitutions');
 const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
@@ -54,8 +54,8 @@ export default function performTextSubstitution(element, substitutionOverrides =
   });
 
   let changeHandlerDisposable = new Disposable(() => {
-    d(`Cleaning up all listeners`);
     systemPreferences.unsubscribeNotification(changeHandlerId);
+    d(`Cleaned up all listeners`);
   });
 
   return new CompositeDisposable(inputEvent, changeHandlerDisposable);
@@ -68,12 +68,6 @@ export default function performTextSubstitution(element, substitutionOverrides =
  * @property {Bool}   on      True if this substitution is enabled
  */
 
- /**
-  * @typedef {Object} ReplacementItem
-  * @property {String} regExp       A regular expression that matches the text to replace
-  * @property {String} replacement  The replacement text
-  */
-
 /**
  * Gets the user's text substitutions on OS X, and creates a regular expression
  * for each entry.
@@ -84,14 +78,20 @@ export default function performTextSubstitution(element, substitutionOverrides =
 function getReplacementItems(substitutions) {
   d(`Found ${substitutions.length} substitutions in NSUserDictionaryReplacementItems`);
 
-  return substitutions
+  let userDictionaryReplacements = substitutions
     .filter((substitution) => substitution.on !== false)
-    .map((substitution) => {
-      return {
-        regExp: getSubstitutionRegExp(substitution.replace),
-        replacement: substitution.with
-      };
-    });
+    .map((substitution) => getSubstitutionRegExp(substitution.replace, substitution.with));
+
+  let useSmartQuotes = systemPreferences.getUserDefault(userDefaultsSmartQuotesKey, 'boolean');
+  d(`Smart quotes are ${useSmartQuotes ? 'on' : 'off'}`);
+
+  let useSmartDashes = systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean');
+  d(`Smart dashes are ${useSmartDashes ? 'on' : 'off'}`);
+
+  return userDictionaryReplacements.concat(
+    useSmartQuotes ? getSmartQuotesRegExp() : [],
+    useSmartDashes ? getSmartDashesRegExp() : []
+  );
 }
 
 /**
@@ -102,29 +102,23 @@ function getReplacementItems(substitutions) {
  * @return {Disposable}                               A `Disposable` that will remove the listener
  */
 function addInputListener(element, replacementItems) {
-  let useSmartQuotes = systemPreferences.getUserDefault(userDefaultsSmartQuotesKey, 'boolean');
-  let useSmartDashes = systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean');
-
   let listener = () => {
     for (let {regExp, replacement} of replacementItems) {
       let match = element.value.match(regExp);
       if (match) {
         let selection = {
-          start: match.index,
-          end: match.index + match[0].length
+          startIndex: match.index,
+          endIndex: match.index + match[0].length
         };
 
         d(`Replacing ${match[0]} with ${replacement}`);
-        replaceText(element, selection, `${match[1]}${replacement}${match[2]}`);
+        replaceText(element, selection, formatReplacement(match, replacement));
       }
     }
   };
 
   element.addEventListener('input', listener);
-
   d(`Added input listener matching against ${replacementItems.length} replacements`);
-  d(`Smart quotes are ${useSmartQuotes ? 'on' : 'off'}`);
-  d(`Smart dashes are ${useSmartDashes ? 'on' : 'off'}`);
 
   return new Disposable(() => {
     element.removeEventListener('input', listener);
@@ -132,12 +126,21 @@ function addInputListener(element, replacementItems) {
   });
 }
 
-function replaceText(element, {start, end}, newText) {
+/**
+ * Performs the actual text replacement using `dispatchEvent`. We use events to
+ * preserve the user's cursor index and make the substitution undoable.
+ *
+ * @param  {EventTarget} element  The DOM node where text is being substituted
+ * @param  {Number} {startIndex   Start index of the text to replace
+ * @param  {Number} endIndex}     End index of the text to replace
+ * @param  {String} newText       The text being inserted
+ */
+function replaceText(element, {startIndex, endIndex}, newText) {
   let textEvent = document.createEvent('TextEvent');
   textEvent.initTextEvent('textInput', true, true, null, newText);
 
-  element.selectionStart = start;
-  element.selectionEnd = end;
+  element.selectionStart = startIndex;
+  element.selectionEnd = endIndex;
 
   element.dispatchEvent(textEvent);
 }

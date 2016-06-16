@@ -3,7 +3,6 @@
 Are you…
   - [x] Using Electron?
   - [x] Making a Mac app?
-  - [x] With an `input` or `textarea`?
   - [x] And want it to respect your OS X text substitutions?
 
 Then this is :sparkles: **FOR YOU.** :sparkles:
@@ -27,7 +26,9 @@ let input = document.getElementById('my-input');
 performTextSubstitution(input);
 ```
 
-We use the [`system-preferences`](https://github.com/electron/electron/blob/master/docs/api/system-preferences.md) API to get the user's text substitutions, as well as watch for changes.
+We use the [`system-preferences`](http://electron.atom.io/docs/api/system-preferences/#systempreferences) API to get the user's text substitutions, as well as watch for changes.
+
+If you have smart quotes or dashes enabled, we'll handle that too.
 
 ## API
 
@@ -35,10 +36,7 @@ We use the [`system-preferences`](https://github.com/electron/electron/blob/mast
 /**
  * Adds an `input` event listener to the given element (an <input> or
  * <textarea>) that will substitute text based on the user's replacements in
- * `NSUserDefaults`.
- *
- * In addition, this method will listen for changes to `NSUserDefaults` and
- * update accordingly.
+ * `NSUserDefaults`, as well as smart quotes and dashes.
  *
  * @param  {EventTarget} element  The DOM node to listen to; should fire the `input` event
  * @return {Disposable}           A `Disposable` that will clean up everything this method did
