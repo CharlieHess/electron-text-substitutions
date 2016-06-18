@@ -23,7 +23,7 @@ export const ellipsis = '\u2026';           // …
 export function getSubstitutionRegExp(match, replacement) {
   // Recreate something like \b; we don't want to use \b because no Unicode
   // support.
-  let wordBoundary = `[ \n\r\t.,'\"\`\+!?«»“”„’‹›—–−-]+`;
+  let wordBoundary = `[ \n\r\t.,\|{}'\"\`\+!?«»“”‘’‹›—–−-]`;
 
   // Capture the word boundaries to align with `formatReplacement`
   let regExp = new RegExp(`(^\|${wordBoundary})${match}(${wordBoundary})`);
