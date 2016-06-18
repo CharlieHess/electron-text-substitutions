@@ -12,9 +12,11 @@ describe('the performTextSubstitution method', () => {
     let substitutions = [{ replace: 'shrug', with: '¯\\_(ツ)_/¯' }];
 
     performTextSubstitution(input, substitutions);
-    input.type(' shrug ');
+    input.inputText(' shrug ');
 
     assert.equal(input.value, 'something, something ¯\\_(ツ)_/¯ ');
+    assert.equal(input.selectionStart, input.selectionEnd);
+    assert.equal(input.selectionStart, input.value.length);
   });
 
   it('should stop replacing when unsubscribed', () => {
@@ -22,11 +24,11 @@ describe('the performTextSubstitution method', () => {
     let substitutions = [{ replace: 'disapproval', with: 'ಠ_ಠ' }];
     let disposable = performTextSubstitution(input, substitutions);
 
-    input.type('disapproval ');
+    input.inputText('disapproval ');
     assert.equal(input.value, 'everything I do deserves… ಠ_ಠ ');
     disposable.dispose();
 
-    input.type('and more disapproval.');
+    input.inputText('and more disapproval.');
     assert.equal(input.value, 'everything I do deserves… ಠ_ಠ and more disapproval.');
   });
 
@@ -39,7 +41,7 @@ describe('the performTextSubstitution method', () => {
 
     performTextSubstitution(input, substitutions);
 
-    input.type('here is a shrug, and a gaze of disapproval.');
+    input.inputText('here is a shrug, and a gaze of disapproval.');
     assert.equal(input.value, 'here is a ¯\\_(ツ)_/¯, and a gaze of ಠ_ಠ.');
   });
 
@@ -49,7 +51,7 @@ describe('the performTextSubstitution method', () => {
 
     performTextSubstitution(input, substitutions);
 
-    input.type('multiple shrug shrug shrug ');
+    input.inputText('multiple shrug shrug shrug ');
     assert.equal(input.value, 'multiple ¯\\_(ツ)_/¯ shrug shrug ');
   });
 });

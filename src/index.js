@@ -106,12 +106,13 @@ function addInputListener(element, replacementItems) {
     for (let {regExp, replacement} of replacementItems) {
       let match = element.value.match(regExp);
       if (match) {
+        d(`Got a match of length ${match[0].length} at index ${match.index}: ${JSON.stringify(match)}`);
+
         let selection = {
           startIndex: match.index,
           endIndex: match.index + match[0].length
         };
 
-        d(`Replacing ${match[0]} with ${replacement}`);
         replaceText(element, selection, formatReplacement(match, replacement));
       }
     }
@@ -142,5 +143,6 @@ function replaceText(element, {startIndex, endIndex}, newText) {
   element.selectionStart = startIndex;
   element.selectionEnd = endIndex;
 
+  d(`Replacing ${element.value.substring(startIndex, endIndex)} with ${newText}`);
   element.dispatchEvent(textEvent);
 }
