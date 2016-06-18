@@ -2,6 +2,7 @@ import {isEqual} from 'lodash';
 import {remote} from 'electron';
 import {Disposable, SerialDisposable, CompositeDisposable} from 'rx-lite';
 import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp, formatReplacement} from './regular-expressions';
+import {isUndoRedoEvent} from './undo-redo-event';
 
 const d = require('debug-electron')('electron-text-substitutions');
 const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
@@ -102,7 +103,14 @@ function getReplacementItems(substitutions) {
  * @return {Disposable}                               A `Disposable` that will remove the listener
  */
 function addInputListener(element, replacementItems) {
-  let listener = () => {
+  let ignoreEvent = false;
+
+  let inputListener = () => {
+    if (ignoreEvent) {
+      d(`Got an undo event, skipping substitutions`);
+      return;
+    }
+
     for (let {regExp, replacement} of replacementItems) {
       let match = element.value.match(regExp);
       if (match) {
@@ -118,11 +126,25 @@ function addInputListener(element, replacementItems) {
     }
   };
 
-  element.addEventListener('input', listener);
+  let keyDownListener = (e) => {
+    ignoreEvent = isUndoRedoEvent(e);
+  };
+
+  let keyUpListener = () => {
+    ignoreEvent = false;
+  };
+
+  element.addEventListener('keydown', keyDownListener, true);
+  element.addEventListener('keyup', keyUpListener, true);
+  element.addEventListener('input', inputListener);
+
   d(`Added input listener matching against ${replacementItems.length} replacements`);
 
   return new Disposable(() => {
-    element.removeEventListener('input', listener);
+    element.removeEventListener('keydown', keyDownListener);
+    element.removeEventListener('keyup', keyUpListener);
+    element.removeEventListener('input', inputListener);
+
     d(`Removed input listener`);
   });
 }
