@@ -15,8 +15,6 @@ describe('the performTextSubstitution method', () => {
     input.inputText(' shrug ');
 
     assert.equal(input.value, 'something, something ¯\\_(ツ)_/¯ ');
-    assert.equal(input.selectionStart, input.selectionEnd);
-    assert.equal(input.selectionStart, input.value.length);
   });
 
   it('should stop replacing when unsubscribed', () => {
