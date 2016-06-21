@@ -1,3 +1,5 @@
+import {reduce} from 'lodash';
+
 export const openingSingleQuote = '\u2018'; // ‘
 export const closingSingleQuote = '\u2019'; // ’
 
@@ -59,6 +61,18 @@ export function getSmartDashesRegExp() {
     { regExp: /(^|[^-])--([^-])/, replacement: emDash },
     { regExp: /(^|[\S\s])\.\.\.([\S\s])/, replacement: ellipsis }
   ];
+}
+
+/**
+ * Replaces text in an input string using the given replacement items.
+ *
+ * @param  {String} input                 The input string
+ * @param  {Array<ReplacementItem>} items An array of replacement items
+ * @return {String}                       The output string
+ */
+export function scrubInputString(input, items) {
+  return reduce(items, (output, {regExp, replacement}) =>
+    output.replace(regExp, `$1${replacement}$2`), input);
 }
 
 /**

@@ -1,7 +1,8 @@
 import {isEqual} from 'lodash';
 import {remote} from 'electron';
 import {Disposable, SerialDisposable, CompositeDisposable} from 'rx-lite';
-import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp, formatReplacement} from './regular-expressions';
+import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
+  scrubInputString, formatReplacement} from './regular-expressions';
 import {isUndoRedoEvent} from './undo-redo-event';
 
 const d = require('debug-electron')('electron-text-substitutions');
@@ -21,11 +22,11 @@ let systemPreferences;
  * update accordingly.
  *
  * @param  {EventTarget} element          The DOM node to listen to; should fire the `input` event
- * @param  {Array} substitutionOverrides  Used to supply substitutions in testing
+ * @param  {Object} preferenceOverrides   Used to override text preferences in testing
  *
  * @return {Disposable}                   A `Disposable` that will clean up everything this method did
  */
-export default function performTextSubstitution(element, substitutionOverrides = null) {
+export default function performTextSubstitution(element, preferenceOverrides = null) {
   if (!element || !element.addEventListener) throw new Error(`Element is null or not an EventTarget`);
   if (!process || !process.type === 'renderer') throw new Error(`Not in an Electron renderer context`);
   if (process.platform !== 'darwin') throw new Error(`Only supported on OS X`);
@@ -36,20 +37,20 @@ export default function performTextSubstitution(element, substitutionOverrides =
     throw new Error(`Electron ${process.versions.electron} is not supported`);
   }
 
-  let substitutions = systemPreferences.getUserDefault(userDefaultsTextSubstitutionsKey, 'array');
-  let replacementItems = getReplacementItems(substitutionOverrides || substitutions || []);
+  let textPreferences = preferenceOverrides || readSystemTextPreferences();
+  let replacementItems = getReplacementItems(textPreferences);
 
   let inputEvent = new SerialDisposable();
   inputEvent.setDisposable(addInputListener(element, replacementItems));
 
   let changeHandlerId = systemPreferences.subscribeNotification(userDefaultsChangedKey, () => {
     d(`Got an ${userDefaultsChangedKey}`);
-    let newSubstitutions = systemPreferences.getUserDefault(userDefaultsTextSubstitutionsKey, 'array');
+    let newTextPreferences = preferenceOverrides || readSystemTextPreferences();
 
-    if (!isEqual(substitutions, newSubstitutions)) {
-      d(`User modified ${userDefaultsTextSubstitutionsKey}, reattaching listener`);
+    if (didTextPreferencesChange(textPreferences, newTextPreferences)) {
+      d(`User modified text preferences, reattaching listener`);
 
-      let newReplacementItems = getReplacementItems(substitutionOverrides || substitutions || []);
+      let newReplacementItems = getReplacementItems(newTextPreferences);
       inputEvent.setDisposable(addInputListener(element, newReplacementItems));
     }
   });
@@ -62,6 +63,20 @@ export default function performTextSubstitution(element, substitutionOverrides =
   return new CompositeDisposable(inputEvent, changeHandlerDisposable);
 }
 
+function readSystemTextPreferences() {
+  return {
+    substitutions: systemPreferences.getUserDefault(userDefaultsTextSubstitutionsKey, 'array') || [],
+    useSmartQuotes: systemPreferences.getUserDefault(userDefaultsSmartQuotesKey, 'boolean') || [],
+    useSmartDashes: systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean') || []
+  };
+}
+
+function didTextPreferencesChange(prev, current) {
+  return !isEqual(prev.substitutions, current.substitutions) ||
+    prev.useSmartQuotes !== current.useSmartQuotes ||
+    prev.useSmartDashes !== current.useSmartDashes;
+}
+
 /**
  * @typedef {Object} TextSubstitution
  * @property {String} replace The text to replace
@@ -69,31 +84,35 @@ export default function performTextSubstitution(element, substitutionOverrides =
  * @property {Bool}   on      True if this substitution is enabled
  */
 
-/**
- * Creates a regular expression for each text substitution entry, in addition
- * to expressions for smart quotes and dashes (if they're enabled).
- *
- * @param  {Array<TextSubstitution>}  An array of text substitution entries
- * @return {Array<ReplacementItem>}   An array of replacement items
- */
-function getReplacementItems(substitutions) {
-  d(`Found ${substitutions.length} substitutions in NSUserDictionaryReplacementItems`);
-
-  let userDictionaryReplacements = substitutions
-    .filter((substitution) => substitution.on !== false)
-    .map((substitution) => getSubstitutionRegExp(substitution.replace, substitution.with));
-
-  let useSmartQuotes = systemPreferences.getUserDefault(userDefaultsSmartQuotesKey, 'boolean');
+ /**
+  * Creates a regular expression for each text substitution entry, in addition
+  * to expressions for smart quotes and dashes (if they're enabled).
+  *
+  * @param  {Array<TextSubstitution>} {substitutions  An array of text substitution entries
+  * @param  {Bool} useSmartQuotes                     True if smart quotes is on
+  * @param  {Bool} useSmartDashes}                    True if smart dashes is on
+  * @return {Array<ReplacementItem>}                  An array of replacement items
+  */
+function getReplacementItems({substitutions, useSmartQuotes, useSmartDashes}) {
   d(`Smart quotes are ${useSmartQuotes ? 'on' : 'off'}`);
-
-  let useSmartDashes = systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean');
   d(`Smart dashes are ${useSmartDashes ? 'on' : 'off'}`);
 
-  // Order matters here; put quotes & dashes first in case the user has defined
-  // replacements that include them (they should not be expanded).
-  return [
+  let additionalReplacements = [
     ...(useSmartQuotes ? getSmartQuotesRegExp() : []),
-    ...(useSmartDashes ? getSmartDashesRegExp() : []),
+    ...(useSmartDashes ? getSmartDashesRegExp() : [])
+  ];
+
+  d(`Found ${substitutions.length} substitutions in NSUserDictionaryReplacementItems`);
+
+  // NB: Run each replacement string through our smart quotes & dashes regex,
+  // so that an input event doesn't cause chained substitutions.
+  let userDictionaryReplacements = substitutions
+    .filter((substitution) => substitution.on !== false)
+    .map((substitution) => getSubstitutionRegExp(substitution.replace,
+      scrubInputString(substitution.with, additionalReplacements)));
+
+  return [
+    ...additionalReplacements,
     ...userDictionaryReplacements
   ];
 }

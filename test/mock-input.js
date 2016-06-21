@@ -19,6 +19,12 @@ export default class MockInput extends EventTarget {
     if (dispatch) this.dispatchEvent({type: 'input'});
   }
 
+  clearText() {
+    this.value = "";
+    this.selectionStart = 0;
+    this.selectionEnd = 0;
+  }
+
   /**
    * Catch `textInput` events and change our underlying text.
    */

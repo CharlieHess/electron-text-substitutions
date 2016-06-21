@@ -9,18 +9,19 @@ describe('the performTextSubstitution method', () => {
 
   it('should replace text after an input event', () => {
     let input = new MockInput('something, something');
-    let substitutions = [{ replace: 'shrug', with: '¯\\_(ツ)_/¯' }];
+    performTextSubstitution(input, {
+      substitutions: [{ replace: 'shrug', with: '¯\\_(ツ)_/¯' }]
+    });
 
-    performTextSubstitution(input, substitutions);
     input.inputText(' shrug ');
-
     assert.equal(input.value, 'something, something ¯\\_(ツ)_/¯ ');
   });
 
   it('should stop replacing when unsubscribed', () => {
     let input = new MockInput('everything I do deserves… ');
-    let substitutions = [{ replace: 'disapproval', with: 'ಠ_ಠ' }];
-    let disposable = performTextSubstitution(input, substitutions);
+    let disposable = performTextSubstitution(input, {
+      substitutions: [{ replace: 'disapproval', with: 'ಠ_ಠ' }]
+    });
 
     input.inputText('disapproval ');
     assert.equal(input.value, 'everything I do deserves… ಠ_ಠ ');
@@ -32,12 +33,12 @@ describe('the performTextSubstitution method', () => {
 
   it('should handle multiple substitutions at once', () => {
     let input = new MockInput('');
-    let substitutions = [
-      { replace: 'disapproval', with: 'ಠ_ಠ' },
-      { replace: 'shrug', with: '¯\\_(ツ)_/¯' }
-    ];
-
-    performTextSubstitution(input, substitutions);
+    performTextSubstitution(input, {
+      substitutions: [
+        { replace: 'disapproval', with: 'ಠ_ಠ' },
+        { replace: 'shrug', with: '¯\\_(ツ)_/¯' }
+      ]
+    });
 
     input.inputText('here is a shrug, and a gaze of disapproval.');
     assert.equal(input.value, 'here is a ¯\\_(ツ)_/¯, and a gaze of ಠ_ಠ.');
@@ -45,11 +46,32 @@ describe('the performTextSubstitution method', () => {
 
   it('should only substitute the first if multiple matches occur', () => {
     let input = new MockInput('');
-    let substitutions = [{ replace: 'shrug', with: '¯\\_(ツ)_/¯' }];
-
-    performTextSubstitution(input, substitutions);
+    performTextSubstitution(input, {
+      substitutions: [{ replace: 'shrug', with: '¯\\_(ツ)_/¯' }]
+    });
 
     input.inputText('multiple shrug shrug shrug ');
     assert.equal(input.value, 'multiple ¯\\_(ツ)_/¯ shrug shrug ');
+  });
+
+  it('should replace dashes and quotes in user dictionary replacements, if the preferences are enabled', () => {
+    let input = new MockInput('');
+    let disposable = performTextSubstitution(input, {
+      substitutions: [{ replace: 'greetings', with: 'Hello-- my name is \'Milo,\' how do you do?' }]
+    });
+
+    input.inputText('greetings ');
+    assert.equal(input.value, 'Hello-- my name is \'Milo,\' how do you do? ');
+    disposable.dispose();
+    input.clearText();
+
+    performTextSubstitution(input, {
+      substitutions: [{ replace: 'greetings', with: 'Hello-- my name is \'Milo,\' how do you do?' }],
+      useSmartQuotes: true,
+      useSmartDashes: true
+    });
+
+    input.inputText('greetings ');
+    assert.equal(input.value, 'Hello— my name is ‘Milo,’ how do you do? ');
   });
 });
