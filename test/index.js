@@ -54,6 +54,29 @@ describe('the performTextSubstitution method', () => {
     assert.equal(input.value, 'multiple ¯\\_(ツ)_/¯ shrug shrug ');
   });
 
+  it('should handle the man known as shinypb', () => {
+    let input = new MockInput('');
+    performTextSubstitution(input, {
+      substitutions: [
+        { replace: "(tm)",  with: "\u2122" },
+        { replace: "....",  with: "\u2026" },
+        { replace: "->",    with: "\u2192" },
+        { replace: "<-",    with: "\u2190" },
+        { replace: "(1/2)", with: "\u00bd" },
+        { replace: "(c)",   with: "\u00a9" },
+        { replace: "(1/4)", with: "\u00bc" },
+        { replace: "(r)",   with: "\u00ae" },
+        { replace: "(3/4)", with: "\u00be" },
+        { replace: "(2/3)", with: "\u2154" },
+        { replace: "(1/3)", with: "\u2153" }
+      ],
+      useSmartDashes: true
+    });
+
+    input.inputText('Hello (c) . look here -> or there <- (1/2) is less than (3/4) (r) .... (1/3) (tm)... ');
+    assert.equal(input.value, 'Hello © . look here → or there ← ½ is less than ¾ ® … ⅓ ™… ');
+  });
+
   it('should replace quotes & dashes, if enabled', () => {
     let input = new MockInput('');
     performTextSubstitution(input, {

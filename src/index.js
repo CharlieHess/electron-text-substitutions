@@ -112,8 +112,8 @@ function getReplacementItems({substitutions, useSmartQuotes, useSmartDashes}) {
       scrubInputString(substitution.with, additionalReplacements)));
 
   return [
-    ...additionalReplacements,
-    ...userDictionaryReplacements
+    ...userDictionaryReplacements,
+    ...additionalReplacements
   ];
 }
 
