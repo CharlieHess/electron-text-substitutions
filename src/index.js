@@ -89,10 +89,13 @@ function getReplacementItems(substitutions) {
   let useSmartDashes = systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean');
   d(`Smart dashes are ${useSmartDashes ? 'on' : 'off'}`);
 
-  return userDictionaryReplacements.concat(
-    useSmartQuotes ? getSmartQuotesRegExp() : [],
-    useSmartDashes ? getSmartDashesRegExp() : []
-  );
+  // Order matters here; put quotes & dashes first in case the user has defined
+  // replacements that include them (they should not be expanded).
+  return [
+    ...(useSmartQuotes ? getSmartQuotesRegExp() : []),
+    ...(useSmartDashes ? getSmartDashesRegExp() : []),
+    ...userDictionaryReplacements
+  ];
 }
 
 /**
@@ -107,9 +110,11 @@ function addInputListener(element, replacementItems) {
 
   let inputListener = () => {
     if (ignoreEvent) {
-      d(`Got an undo event, skipping substitutions`);
+      d(`In a substitution or an undo / redo, ignore this event`);
       return;
     }
+
+    ignoreEvent = true;
 
     for (let {regExp, replacement} of replacementItems) {
       let match = element.value.match(regExp);
@@ -133,6 +138,8 @@ function addInputListener(element, replacementItems) {
         if (isInserting) element.selectionEnd -= match[2].length;
       }
     }
+
+    ignoreEvent = false;
   };
 
   let keyDownListener = (e) => {
