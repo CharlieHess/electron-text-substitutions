@@ -54,7 +54,19 @@ describe('the performTextSubstitution method', () => {
     assert.equal(input.value, 'multiple ¯\\_(ツ)_/¯ shrug shrug ');
   });
 
-  it('should replace dashes and quotes in user dictionary replacements, if the preferences are enabled', () => {
+  it('should replace quotes & dashes, if enabled', () => {
+    let input = new MockInput('');
+    performTextSubstitution(input, {
+      substitutions: [],
+      useSmartQuotes: true,
+      useSmartDashes: true
+    });
+
+    input.inputText('\'This is a single quote,\' she said--- \"And this is a double\" ');
+    assert.equal(input.value, '‘This is a single quote,’ she said— “And this is a double” ');
+  });
+
+  it('should replace quotes & dashes within user dictionary replacements, if enabled', () => {
     let input = new MockInput('');
     let disposable = performTextSubstitution(input, {
       substitutions: [{ replace: 'greetings', with: 'Hello-- my name is \'Milo,\' how do you do?' }]
