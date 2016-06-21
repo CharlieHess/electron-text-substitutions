@@ -1,4 +1,4 @@
-import {reduce} from 'lodash';
+import {escapeRegExp, reduce} from 'lodash';
 
 export const openingSingleQuote = '\u2018'; // ‘
 export const closingSingleQuote = '\u2019'; // ’
@@ -28,7 +28,11 @@ export function getSubstitutionRegExp(match, replacement) {
   let wordBoundary = /[ \n\r\t.,|{}'"`+!?«»“”‘’‹›—–−-]/;
 
   // Capture the word boundaries to align with `formatReplacement`
-  let regExp = new RegExp(`(^\|${wordBoundary.source})${match}(${wordBoundary.source})`);
+  let regExp = new RegExp(
+    `(^\|${wordBoundary.source})` + // Match the start of input OR a word boundary
+    `${escapeRegExp(match)}` +      // Match the substitution item; escape control characters
+    `(${wordBoundary.source})`      // Match a word boundary but not the end of input
+  , 'u');
 
   return { regExp, replacement };
 }
@@ -41,11 +45,11 @@ export function getSubstitutionRegExp(match, replacement) {
  */
 export function getSmartQuotesRegExp() {
   return [
-    { regExp: /(\S)"([\S\s])/, replacement: closingDoubleQuote },
-    { regExp: /()"([\S\s])/, replacement: openingDoubleQuote },
-    { regExp: /([\S\s])'(\W)/, replacement: closingSingleQuote },
-    { regExp: /(\W|^)'([\w\s])/, replacement: openingSingleQuote },
-    { regExp: /(\w)'(\w+\W)/, replacement: closingSingleQuote }
+    { regExp: /(\S)"([\S\s])/u, replacement: closingDoubleQuote },
+    { regExp: /()"([\S\s])/u, replacement: openingDoubleQuote },
+    { regExp: /([\S\s])'(\W)/u, replacement: closingSingleQuote },
+    { regExp: /(\W|^)'([\w\s])/u, replacement: openingSingleQuote },
+    { regExp: /(\w)'(\w+\W)/u, replacement: closingSingleQuote }
   ];
 }
 
@@ -57,9 +61,9 @@ export function getSmartQuotesRegExp() {
  */
 export function getSmartDashesRegExp() {
   return [
-    { regExp: /(^|[^-])---([^-])/, replacement: emDash },
-    { regExp: /(^|[^-])--([^-])/, replacement: emDash },
-    { regExp: /(^|[\S\s])\.\.\.([\S\s])/, replacement: ellipsis }
+    { regExp: /(^|[^-])---([^-])/u, replacement: emDash },
+    { regExp: /(^|[^-])--([^-])/u, replacement: emDash },
+    { regExp: /(^|[\S\s])\.\.\.([\S\s])/u, replacement: ellipsis }
   ];
 }
 

@@ -48,6 +48,14 @@ describe('the getSubstitutionRegExp method', () => {
 
     assert.equal(result, "\n\n\t¯\\_(ツ)_/¯   \n");
   });
+
+  it('should handle subsitutions that contain RegExp special characters', () => {
+    let input = "Copyright (c) ";
+    let {regExp} = getSubstitutionRegExp('(c)');
+    let result = input.replace(regExp, `$1©$2`);
+
+    assert.equal(result, "Copyright © ");
+  });
 });
 
 describe('the getSmartQuotesRegExp method', () => {
