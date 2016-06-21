@@ -3,7 +3,7 @@
 Are you…
   - [x] Using Electron?
   - [x] Making a Mac app?
-  - [x] And want it to respect your OS X text substitutions?
+  - [x] And want it to respect your macOS text substitutions?
 
 Then this is :sparkles: **FOR YOU.** :sparkles:
 
