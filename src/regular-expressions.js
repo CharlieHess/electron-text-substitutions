@@ -63,7 +63,7 @@ export function getSmartDashesRegExp() {
   return [
     { regExp: /(^|[^-])---([^-])/u, replacement: emDash },
     { regExp: /(^|[^-])--([^-])/u, replacement: emDash },
-    { regExp: /(^|[\S\s])\.\.\.([\S\s])/u, replacement: ellipsis }
+    { regExp: /(^|[^.])\.\.\.([^.])/u, replacement: ellipsis }
   ];
 }
 

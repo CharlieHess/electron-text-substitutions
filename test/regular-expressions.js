@@ -104,6 +104,7 @@ describe('the getSmartDashesRegExp method', () => {
   it('should replace consecutive periods with an ellipsis', () => {
     assertRegExReplacements(getSmartDashesRegExp(), [
       { input: `...`, output: `...` },
+      { input: `....`, output: `....` },
       { input: `... `, output: `… ` },
       { input: `some text...more text`, output: `some text…more text` }
     ]);
