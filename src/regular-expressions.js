@@ -6,8 +6,14 @@ export const closingSingleQuote = '\u2019'; // ’
 export const openingDoubleQuote = '\u201c'; // “
 export const closingDoubleQuote = '\u201d'; // ”
 
-export const emDash = '\u2014';             // —
+export const emDash   = '\u2014';           // —
 export const ellipsis = '\u2026';           // …
+
+/**
+ * Recreate something like \b; we don't want to use \b because no Unicode support.
+ */
+const wordBoundary = /[ \n\r\t.,|{}()<>'"`+!?«»“”‘’‹›—–−-]/;
+const startsWithWordBoundary = new RegExp(`^${wordBoundary.source}`);
 
 /**
  * @typedef {Object} ReplacementItem
@@ -23,15 +29,21 @@ export const ellipsis = '\u2026';           // …
  * @return {ReplacementItem}  A replacement item; contains a `RegExp` and its replacement
  */
 export function getSubstitutionRegExp(match, replacement) {
-  // Recreate something like \b; we don't want to use \b because no Unicode
-  // support.
-  let wordBoundary = /[ \n\r\t.,|{}'"`+!?«»“”‘’‹›—–−-]/;
 
-  // Capture the word boundaries to align with `formatReplacement`
+  // Require the start of input or a word boundary, unless the string to match
+  // starts with a boundary (e.g., `(tm)`) in which case we want to match text
+  // like `BigCompany(tm)`.
+  let startOfInputOrBoundary = startsWithWordBoundary.test(match) ?
+    '' :
+    `^\|${wordBoundary.source}`;
+
+  // Capture the left and right boundaries as groups $1 and $2, to align with
+  // `formatReplacement`. Be sure to escape special characters in the string
+  // to match.
   let regExp = new RegExp(
-    `(^\|${wordBoundary.source})` + // Match the start of input OR a word boundary
-    `${escapeRegExp(match)}` +      // Match the substitution item; escape control characters
-    `(${wordBoundary.source})`      // Match a word boundary but not the end of input
+    `(${startOfInputOrBoundary})` +
+    `${escapeRegExp(match)}` +
+    `(${wordBoundary.source})`
   , 'u');
 
   return { regExp, replacement };

@@ -42,19 +42,33 @@ describe('the getSubstitutionRegExp method', () => {
   });
 
   it('should preserve whitespace around a match', () => {
-    let input = "\n\n\tshrug   \n";
-    let {regExp} = getSubstitutionRegExp('shrug');
-    let result = input.replace(regExp, `$1¯\\_(ツ)_/¯$2`);
-
-    assert.equal(result, "\n\n\t¯\\_(ツ)_/¯   \n");
+    assertRegExReplacements([getSubstitutionRegExp('shrug', '¯\\_(ツ)_/¯')], [
+      { input: `\n\n\tshrug   \n`, output: `\n\n\t¯\\_(ツ)_/¯   \n` }
+    ]);
   });
 
   it('should handle subsitutions that contain RegExp special characters', () => {
-    let input = "Copyright (c) ";
-    let {regExp} = getSubstitutionRegExp('(c)');
-    let result = input.replace(regExp, `$1©$2`);
+    assertRegExReplacements([getSubstitutionRegExp('(c)', '©')], [
+      { input: `Copyright (c) `, output: `Copyright © ` }
+    ]);
+  });
 
-    assert.equal(result, "Copyright © ");
+  it('should handle substitutions that start or end with boundary characters', () => {
+    assertRegExReplacements([
+      getSubstitutionRegExp('(tm)', '™'),
+      getSubstitutionRegExp('-tt', '+:+1:'),
+      getSubstitutionRegExp('<br>', '&nbsp;'),
+      getSubstitutionRegExp('||', '║'),
+      getSubstitutionRegExp('{one}', '¹'),
+      getSubstitutionRegExp(':thumbsup:', '👍')
+    ], [
+      { input: `Trademark(tm) `, output: `Trademark™ ` },
+      { input: `cool-tt!`, output: `cool+:+1:!` },
+      { input: `block<br><br>block`, output: `block&nbsp;&nbsp;block` },
+      { input: `cat||file`, output: `cat║file` },
+      { input: `source{one} `, output: `source¹` },
+      { input: `good job:thumbsup: `, output: `good job👍` }
+    ]);
   });
 });
 
