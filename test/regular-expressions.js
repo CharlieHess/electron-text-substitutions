@@ -64,10 +64,10 @@ describe('the getSubstitutionRegExp method', () => {
     ], [
       { input: `Trademark(tm) `, output: `Trademark™ ` },
       { input: `cool-tt!`, output: `cool+:+1:!` },
-      { input: `block<br><br>block`, output: `block&nbsp;&nbsp;block` },
+      { input: `block<br>block`, output: `block&nbsp;block` },
       { input: `cat||file`, output: `cat║file` },
-      { input: `source{one} `, output: `source¹` },
-      { input: `good job:thumbsup: `, output: `good job👍` }
+      { input: `source{one} `, output: `source¹ ` },
+      { input: `good job:thumbsup: `, output: `good job👍 ` }
     ]);
   });
 });

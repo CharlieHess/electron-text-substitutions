@@ -12,8 +12,9 @@ export const ellipsis = '\u2026';           // …
 /**
  * Recreate something like \b; we don't want to use \b because no Unicode support.
  */
-const wordBoundary = /[ \n\r\t.,|{}()<>'"`+!?«»“”‘’‹›—–−-]/;
+const wordBoundary = /[ \n\r\t.,:;|{}()<>'"`+!?«»“”‘’‹›—–−-]/;
 const startsWithWordBoundary = new RegExp(`^${wordBoundary.source}`);
+const endsWithWordBoundary = new RegExp(`${wordBoundary.source}$`);
 
 /**
  * @typedef {Object} ReplacementItem
@@ -31,11 +32,18 @@ const startsWithWordBoundary = new RegExp(`^${wordBoundary.source}`);
 export function getSubstitutionRegExp(match, replacement) {
 
   // Require the start of input or a word boundary, unless the string to match
-  // starts with a boundary (e.g., `(tm)`) in which case we want to match text
-  // like `BigCompany(tm)`.
+  // already starts with a boundary (e.g., `(tm)`) in which case we want to
+  // match text like `BigCompany(tm)`.
   let startOfInputOrBoundary = startsWithWordBoundary.test(match) ?
     '' :
     `^\|${wordBoundary.source}`;
+
+  // Require a terminating word boundary, unless the string to match already
+  // ends with a boundary (e.g., `<br>`) in which case we will also accept word
+  // characters, to match something like `<br>content`.
+  let wordCharacterOrBoundary = endsWithWordBoundary.test(match) ?
+    `\\w\|${wordBoundary.source}` :
+    wordBoundary.source;
 
   // Capture the left and right boundaries as groups $1 and $2, to align with
   // `formatReplacement`. Be sure to escape special characters in the string
@@ -43,7 +51,7 @@ export function getSubstitutionRegExp(match, replacement) {
   let regExp = new RegExp(
     `(${startOfInputOrBoundary})` +
     `${escapeRegExp(match)}` +
-    `(${wordBoundary.source})`
+    `(${wordCharacterOrBoundary})`
   , 'u');
 
   return { regExp, replacement };
