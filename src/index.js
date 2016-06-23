@@ -43,7 +43,7 @@ export default function performTextSubstitution(element, preferenceOverrides = n
   let inputEvent = new SerialDisposable();
   inputEvent.setDisposable(addInputListener(element, replacementItems));
 
-  let changeHandlerId = systemPreferences.subscribeNotification(userDefaultsChangedKey, () => {
+  let changeHandlerId = systemPreferences.subscribeLocalNotification(userDefaultsChangedKey, () => {
     d(`Got an ${userDefaultsChangedKey}`);
     let newTextPreferences = preferenceOverrides || readSystemTextPreferences();
 
@@ -56,7 +56,7 @@ export default function performTextSubstitution(element, preferenceOverrides = n
   });
 
   let changeHandlerDisposable = new Disposable(() => {
-    systemPreferences.unsubscribeNotification(changeHandlerId);
+    systemPreferences.unsubscribeLocalNotification(changeHandlerId);
     d(`Cleaned up all listeners`);
   });
 
@@ -128,11 +128,7 @@ function addInputListener(element, replacementItems) {
   let ignoreEvent = false;
 
   let inputListener = () => {
-    if (ignoreEvent) {
-      d(`In a substitution or an undo / redo, ignore this event`);
-      return;
-    }
-
+    if (ignoreEvent) return;
     ignoreEvent = true;
 
     for (let {regExp, replacement} of replacementItems) {
@@ -162,7 +158,10 @@ function addInputListener(element, replacementItems) {
   };
 
   let keyDownListener = (e) => {
-    ignoreEvent = isUndoRedoEvent(e);
+    if (isUndoRedoEvent(e)) {
+      d(`Undo or redo text from ${e.target.value}`);
+      ignoreEvent = true;
+    }
   };
 
   let keyUpListener = () => {
@@ -173,14 +172,14 @@ function addInputListener(element, replacementItems) {
   element.addEventListener('keyup', keyUpListener, true);
   element.addEventListener('input', inputListener);
 
-  d(`Added input listener matching against ${replacementItems.length} replacements`);
+  d(`Added input listener to ${element.id} matching against ${replacementItems.length} replacements`);
 
   return new Disposable(() => {
     element.removeEventListener('keydown', keyDownListener);
     element.removeEventListener('keyup', keyUpListener);
     element.removeEventListener('input', inputListener);
 
-    d(`Removed input listener`);
+    d(`Removed input listener from ${element.id}`);
   });
 }
 
