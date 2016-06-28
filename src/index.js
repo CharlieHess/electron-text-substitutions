@@ -69,9 +69,8 @@ export default function performTextSubstitution(element, preferenceOverrides = n
 
 /**
  * Subscribes to text preference changed notifications and notifies listeners
- * in renderer processes. This method must be called from the browser process,
- * and should be called before any renderer process calls
- * `performTextSubstitution`.
+ * in renderer processes. This method must be called from the main process, and
+ * should be called before any renderer process calls `performTextSubstitution`.
  *
  * @return {Disposable}  A `Disposable` that will clean up everything this method did
  */
