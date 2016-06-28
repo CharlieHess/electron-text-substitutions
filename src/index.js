@@ -83,8 +83,9 @@ export function listenForPreferenceChanges() {
   systemPreferences = systemPreferences || electron.systemPreferences;
 
   ipcMain.on(registerForPreferenceChangedIpcMessage, ({sender}) => {
-    d(`Registering webContents ${sender.getId()} for preference changes`);
-    registeredWebContents[sender.getId()] = sender;
+    let id = sender.getId();
+    d(`Registering webContents ${id} for preference changes`);
+    registeredWebContents[id] = { id, sender };
   });
 
   ipcMain.on(unregisterForPreferenceChangedIpcMessage, ({sender}) => {
@@ -95,10 +96,7 @@ export function listenForPreferenceChanges() {
   let notificationDisp = Observable.fromArray(textPreferenceChangedKeys)
     .flatMap((key) => observableForPreferenceNotification(key))
     .debounce(1000)
-    .do((key) => d(`Got a ${key}`))
-    .subscribe(() => {
-      forEach(values(registeredWebContents), (sender) => sender.send(preferenceChangedIpcMessage));
-    });
+    .subscribe(notifyAllListeners);
 
   return new CompositeDisposable(
     notificationDisp,
@@ -117,10 +115,26 @@ export function listenForPreferenceChanges() {
 function observableForPreferenceNotification(preferenceChangedKey) {
   return Observable.create((subj) => {
     let subscriberId = systemPreferences.subscribeNotification(preferenceChangedKey, () => {
+      d(`Got a ${preferenceChangedKey}`);
       subj.onNext(preferenceChangedKey);
     });
 
     return new Disposable(() => systemPreferences.unsubscribeNotification(subscriberId));
+  });
+}
+
+/**
+ * Sends an IPC message to each `WebContents` that is doing text substitution,
+ * unless it has been destroyed, in which case remove it from our list.
+ */
+function notifyAllListeners() {
+  forEach(values(registeredWebContents), ({id, sender}) => {
+    if (sender.isDestroyed() || sender.isCrashed()) {
+      d(`WebContents ${id} is gone, removing it`);
+      delete registeredWebContents[id];
+    } else {
+      sender.send(preferenceChangedIpcMessage);
+    }
   });
 }
 
