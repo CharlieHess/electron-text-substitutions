@@ -78,8 +78,8 @@ export default function performTextSubstitution(element, preferenceOverrides = n
 function readSystemTextPreferences() {
   return {
     substitutions: systemPreferences.getUserDefault(userDefaultsTextSubstitutionsKey, 'array') || [],
-    useSmartQuotes: systemPreferences.getUserDefault(userDefaultsSmartQuotesKey, 'boolean') || [],
-    useSmartDashes: systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean') || []
+    useSmartQuotes: systemPreferences.getUserDefault(userDefaultsSmartQuotesKey, 'boolean'),
+    useSmartDashes: systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean')
   };
 }
 
