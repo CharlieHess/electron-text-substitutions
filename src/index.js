@@ -6,10 +6,16 @@ import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
 import {isUndoRedoEvent} from './undo-redo-event';
 
 const d = require('debug-electron')('electron-text-substitutions');
+
 const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
 const userDefaultsSmartQuotesKey = 'NSAutomaticQuoteSubstitutionEnabled';
 const userDefaultsSmartDashesKey = 'NSAutomaticDashSubstitutionEnabled';
-const userDefaultsChangedKey = 'NSUserDefaultsDidChangeNotification';
+
+const textPreferenceChangedKeys = [
+  'IMKTextReplacementDidChangeNotification',
+  'NSAutomaticQuoteSubstitutionEnabledChanged',
+  'NSAutomaticDashSubstitutionEnabledChanged'
+];
 
 let systemPreferences;
 
@@ -43,20 +49,26 @@ export default function performTextSubstitution(element, preferenceOverrides = n
   let inputEvent = new SerialDisposable();
   inputEvent.setDisposable(addInputListener(element, replacementItems));
 
-  let changeHandlerId = systemPreferences.subscribeLocalNotification(userDefaultsChangedKey, () => {
-    d(`Got an ${userDefaultsChangedKey}`);
-    let newTextPreferences = preferenceOverrides || readSystemTextPreferences();
+  let subscriptionIds = [];
 
-    if (didTextPreferencesChange(textPreferences, newTextPreferences)) {
-      d(`User modified text preferences, reattaching listener`);
+  for (let preferenceChangedKey of textPreferenceChangedKeys) {
+    subscriptionIds.push(systemPreferences.subscribeNotification(preferenceChangedKey, () => {
+      d(`Got a ${preferenceChangedKey}`);
+      let newTextPreferences = preferenceOverrides || readSystemTextPreferences();
 
-      let newReplacementItems = getReplacementItems(newTextPreferences);
-      inputEvent.setDisposable(addInputListener(element, newReplacementItems));
-    }
-  });
+      if (didTextPreferencesChange(textPreferences, newTextPreferences)) {
+        d(`User modified text preferences, reattaching listener`);
+
+        let newReplacementItems = getReplacementItems(newTextPreferences);
+        inputEvent.setDisposable(addInputListener(element, newReplacementItems));
+      }
+    }));
+  }
 
   let changeHandlerDisposable = new Disposable(() => {
-    systemPreferences.unsubscribeLocalNotification(changeHandlerId);
+    for (let subscriptionId of subscriptionIds) {
+      systemPreferences.unsubscribeNotification(subscriptionId);
+    }
     d(`Cleaned up all listeners`);
   });
 
