@@ -1,6 +1,6 @@
 import electron from 'electron';
-import {values} from 'lodash';
-import {Disposable, SerialDisposable} from 'rx-lite';
+import {forEach, values} from 'lodash';
+import {Observable, Disposable, CompositeDisposable, SerialDisposable} from 'rx-lite';
 import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
   scrubInputString, formatReplacement} from './regular-expressions';
 import {isUndoRedoEvent} from './undo-redo-event';
@@ -69,7 +69,9 @@ export default function performTextSubstitution(element, preferenceOverrides = n
 
 /**
  * Subscribes to text preference changed notifications and notifies listeners
- * in renderer processes. This method must be called from the browser process.
+ * in renderer processes. This method must be called from the browser process,
+ * and should be called before any renderer process calls
+ * `performTextSubstitution`.
  *
  * @return {Disposable}  A `Disposable` that will clean up everything this method did
  */
@@ -90,22 +92,35 @@ export function listenForPreferenceChanges() {
     delete registeredWebContents[sender.getId()];
   });
 
-  let subscriptionIds = [];
+  let notificationDisp = Observable.fromArray(textPreferenceChangedKeys)
+    .flatMap((key) => observableForPreferenceNotification(key))
+    .debounce(1000)
+    .do((key) => d(`Got a ${key}`))
+    .subscribe(() => {
+      forEach(values(registeredWebContents), (sender) => sender.send(preferenceChangedIpcMessage));
+    });
 
-  for (let preferenceChangedKey of textPreferenceChangedKeys) {
-    subscriptionIds.push(systemPreferences.subscribeNotification(preferenceChangedKey, () => {
-      d(`Got a ${preferenceChangedKey}`);
+  return new CompositeDisposable(
+    notificationDisp,
+    new Disposable(() => ipcMain.removeAllListeners(registerForPreferenceChangedIpcMessage)),
+    new Disposable(() => ipcMain.removeAllListeners(unregisterForPreferenceChangedIpcMessage))
+  );
+}
 
-      for (let sender of values(registeredWebContents)) {
-        sender.send(preferenceChangedIpcMessage);
-      }
-    }));
-  }
+/**
+ * Creates an Observable that will `onNext` when the given key in
+ * `NSUserDefaults` changes.
+ *
+ * @param  {String} preferenceChangedKey  The key to listen for
+ * @return {Disposable}                   A Disposable that will unsubscribe the listener
+ */
+function observableForPreferenceNotification(preferenceChangedKey) {
+  return Observable.create((subj) => {
+    let subscriberId = systemPreferences.subscribeNotification(preferenceChangedKey, () => {
+      subj.onNext(preferenceChangedKey);
+    });
 
-  return new Disposable(() => {
-    d(`Removing all preference listeners`);
-    ipcMain.removeAllListeners(registerForPreferenceChangedIpcMessage);
-    for (let subscriptionId of subscriptionIds) systemPreferences.unsubscribeNotification(subscriptionId);
+    return new Disposable(() => systemPreferences.unsubscribeNotification(subscriberId));
   });
 }
 
