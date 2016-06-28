@@ -1,11 +1,16 @@
-import {isEqual} from 'lodash';
-import {remote} from 'electron';
-import {Disposable, SerialDisposable, CompositeDisposable} from 'rx-lite';
+import electron from 'electron';
+import {values} from 'lodash';
+import {Disposable, SerialDisposable} from 'rx-lite';
 import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
   scrubInputString, formatReplacement} from './regular-expressions';
 import {isUndoRedoEvent} from './undo-redo-event';
 
-const d = require('debug-electron')('electron-text-substitutions');
+const packageName = 'electron-text-substitutions';
+const d = require('debug-electron')(packageName);
+
+const registerForPreferenceChangedIpcMessage = `${packageName}-register-renderer`;
+const unregisterForPreferenceChangedIpcMessage = `${packageName}-unregister-renderer`;
+const preferenceChangedIpcMessage = `${packageName}-preference-changed`;
 
 const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
 const userDefaultsSmartQuotesKey = 'NSAutomaticQuoteSubstitutionEnabled';
@@ -17,7 +22,8 @@ const textPreferenceChangedKeys = [
   'NSAutomaticDashSubstitutionEnabledChanged'
 ];
 
-let systemPreferences;
+let ipcMain, ipcRenderer, systemPreferences;
+let registeredWebContents = {};
 
 /**
  * Adds an `input` event listener to the given element (an <input> or
@@ -37,42 +43,79 @@ export default function performTextSubstitution(element, preferenceOverrides = n
   if (!process || !process.type === 'renderer') throw new Error(`Not in an Electron renderer context`);
   if (process.platform !== 'darwin') throw new Error(`Only supported on OS X`);
 
-  systemPreferences = systemPreferences || remote.systemPreferences;
+  ipcRenderer = ipcRenderer || electron.ipcRenderer;
+  systemPreferences = systemPreferences || electron.remote.systemPreferences;
 
   if (!systemPreferences || !systemPreferences.getUserDefault) {
     throw new Error(`Electron ${process.versions.electron} is not supported`);
   }
 
-  let textPreferences = preferenceOverrides || readSystemTextPreferences();
-  let replacementItems = getReplacementItems(textPreferences);
+  ipcRenderer.send(registerForPreferenceChangedIpcMessage);
 
-  let inputEvent = new SerialDisposable();
-  inputEvent.setDisposable(addInputListener(element, replacementItems));
+  window.addEventListener('beforeunload', () => {
+    d(`Window unloading, unregister any listeners`);
+    ipcRenderer.send(unregisterForPreferenceChangedIpcMessage);
+  });
+
+  let currentAttach = assignDisposableToListener(element, preferenceOverrides);
+
+  ipcRenderer.on(preferenceChangedIpcMessage, () => {
+    d(`User modified text preferences, reattaching listener`);
+    assignDisposableToListener(element, preferenceOverrides, currentAttach);
+  });
+
+  return currentAttach;
+}
+
+/**
+ * Subscribes to text preference changed notifications and notifies listeners
+ * in renderer processes. This method must be called from the browser process.
+ *
+ * @return {Disposable}  A `Disposable` that will clean up everything this method did
+ */
+export function listenForPreferenceChanges() {
+  if (!process || !process.type === 'browser') throw new Error(`Not in an Electron browser context`);
+  if (process.platform !== 'darwin') throw new Error(`Only supported on OS X`);
+
+  ipcMain = ipcMain || electron.ipcMain;
+  systemPreferences = systemPreferences || electron.systemPreferences;
+
+  ipcMain.on(registerForPreferenceChangedIpcMessage, ({sender}) => {
+    d(`Registering webContents ${sender.getId()} for preference changes`);
+    registeredWebContents[sender.getId()] = sender;
+  });
+
+  ipcMain.on(unregisterForPreferenceChangedIpcMessage, ({sender}) => {
+    d(`Unregistering webContents ${sender.getId()}`);
+    delete registeredWebContents[sender.getId()];
+  });
 
   let subscriptionIds = [];
 
   for (let preferenceChangedKey of textPreferenceChangedKeys) {
     subscriptionIds.push(systemPreferences.subscribeNotification(preferenceChangedKey, () => {
       d(`Got a ${preferenceChangedKey}`);
-      let newTextPreferences = preferenceOverrides || readSystemTextPreferences();
 
-      if (didTextPreferencesChange(textPreferences, newTextPreferences)) {
-        d(`User modified text preferences, reattaching listener`);
-
-        let newReplacementItems = getReplacementItems(newTextPreferences);
-        inputEvent.setDisposable(addInputListener(element, newReplacementItems));
+      for (let sender of values(registeredWebContents)) {
+        sender.send(preferenceChangedIpcMessage);
       }
     }));
   }
 
-  let changeHandlerDisposable = new Disposable(() => {
-    for (let subscriptionId of subscriptionIds) {
-      systemPreferences.unsubscribeNotification(subscriptionId);
-    }
-    d(`Cleaned up all listeners`);
+  return new Disposable(() => {
+    d(`Removing all preference listeners`);
+    ipcMain.removeAllListeners(registerForPreferenceChangedIpcMessage);
+    for (let subscriptionId of subscriptionIds) systemPreferences.unsubscribeNotification(subscriptionId);
   });
+}
 
-  return new CompositeDisposable(inputEvent, changeHandlerDisposable);
+function assignDisposableToListener(element, preferenceOverrides, currentAttach = null) {
+  let textPreferences = preferenceOverrides || readSystemTextPreferences();
+  let replacementItems = getReplacementItems(textPreferences);
+
+  currentAttach = currentAttach || new SerialDisposable();
+  currentAttach.setDisposable(addInputListener(element, replacementItems));
+  return currentAttach;
 }
 
 function readSystemTextPreferences() {
@@ -81,12 +124,6 @@ function readSystemTextPreferences() {
     useSmartQuotes: systemPreferences.getUserDefault(userDefaultsSmartQuotesKey, 'boolean'),
     useSmartDashes: systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean')
   };
-}
-
-function didTextPreferencesChange(prev, current) {
-  return !isEqual(prev.substitutions, current.substitutions) ||
-    prev.useSmartQuotes !== current.useSmartQuotes ||
-    prev.useSmartDashes !== current.useSmartDashes;
 }
 
 /**
