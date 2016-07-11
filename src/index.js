@@ -209,13 +209,19 @@ function addInputListener(element, replacementItems) {
     ignoreEvent = true;
 
     for (let {regExp, replacement} of replacementItems) {
-      let match = element.value.match(regExp);
+      // Rather than search the entire input, we're just going to check the word
+      // immediately before the caret (along with its surrounding whitespace).
+      // This is to avoid substitutions after, say, a paste or an undo.
+      let searchStartIndex = lastIndexOfWhitespace(element.value, element.selectionEnd);
+      let lastWordBlock = element.value.substring(searchStartIndex, element.selectionEnd);
+      let match = lastWordBlock.match(regExp);
+
       if (match && match.length === 3) {
         d(`Got a match of length ${match[0].length} at index ${match.index}: ${JSON.stringify(match)}`);
 
         let selection = {
-          startIndex: match.index,
-          endIndex: match.index + match[0].length
+          startIndex: searchStartIndex + match.index,
+          endIndex: searchStartIndex + match.index + match[0].length
         };
 
         // Are we inserting characters before the end of input (vs appending?)
@@ -264,6 +270,17 @@ function addInputListener(element, replacementItems) {
 
     d(`Removed input listener from ${element.id}`);
   });
+}
+
+function lastIndexOfWhitespace(value, fromIndex) {
+  let lastIndex = 0;
+  let whitespace = /\s/g;
+  let textToCaret = value.substring(0, fromIndex).trimRight();
+
+  while (whitespace.exec(textToCaret) !== null) {
+    lastIndex = whitespace.lastIndex;
+  }
+  return lastIndex;
 }
 
 /**
