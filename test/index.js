@@ -31,7 +31,7 @@ describe('the performTextSubstitution method', () => {
     assert.equal(input.value, 'everything I do deserves… ಠ_ಠ and more disapproval.');
   });
 
-  it('should handle multiple substitutions at once', () => {
+  it('should handle multiple substitutions', () => {
     let input = new MockInput('');
     performTextSubstitution(input, {
       substitutions: [
@@ -40,18 +40,21 @@ describe('the performTextSubstitution method', () => {
       ]
     });
 
-    input.inputText('here is a shrug, and a gaze of disapproval.');
+    input.inputText('here is a shrug,');
+    assert.equal(input.value, 'here is a ¯\\_(ツ)_/¯,');
+
+    input.inputText(' and a gaze of disapproval.');
     assert.equal(input.value, 'here is a ¯\\_(ツ)_/¯, and a gaze of ಠ_ಠ.');
   });
 
-  it('should only substitute the first if multiple matches occur', () => {
+  it('should only substitute word preceding the cursor', () => {
     let input = new MockInput('');
     performTextSubstitution(input, {
       substitutions: [{ replace: 'shrug', with: '¯\\_(ツ)_/¯' }]
     });
 
     input.inputText('multiple shrug shrug shrug ');
-    assert.equal(input.value, 'multiple ¯\\_(ツ)_/¯ shrug shrug ');
+    assert.equal(input.value, 'multiple shrug shrug ¯\\_(ツ)_/¯ ');
   });
 
   it('should handle the man known as shinypb', () => {
