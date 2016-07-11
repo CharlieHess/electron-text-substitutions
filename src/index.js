@@ -241,11 +241,16 @@ function addInputListener(element, replacementItems) {
     }
   };
 
+  let pasteListener = () => {
+    ignoreEvent = true;
+  };
+
   let keyUpListener = () => {
     ignoreEvent = false;
   };
 
   element.addEventListener('keydown', keyDownListener, true);
+  element.addEventListener('paste', pasteListener, true);
   element.addEventListener('keyup', keyUpListener, true);
   element.addEventListener('input', inputListener);
 
@@ -253,6 +258,7 @@ function addInputListener(element, replacementItems) {
 
   return new Disposable(() => {
     element.removeEventListener('keydown', keyDownListener);
+    element.removeEventListener('paste', pasteListener);
     element.removeEventListener('keyup', keyUpListener);
     element.removeEventListener('input', inputListener);
 
