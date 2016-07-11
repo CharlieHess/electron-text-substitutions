@@ -73,7 +73,7 @@ describe('the performTextSubstitution method', () => {
       useSmartDashes: true
     });
 
-    input.inputText('Hello (c) . look here -> or there <- (1/2) is less than (3/4) (r) .... (1/3) (tm)... ');
+    input.typeText('Hello (c) . look here -> or there <- (1/2) is less than (3/4) (r) .... (1/3) (tm)... ');
     assert.equal(input.value, 'Hello © . look here → or there ← ½ is less than ¾ ® … ⅓ ™… ');
   });
 
@@ -85,7 +85,7 @@ describe('the performTextSubstitution method', () => {
       useSmartDashes: true
     });
 
-    input.inputText('\'This is a single quote,\' she said--- \"And this is a double\" ');
+    input.typeText('\'This is a single quote,\' she said--- \"And this is a double\" ');
     assert.equal(input.value, '‘This is a single quote,’ she said— “And this is a double” ');
   });
 

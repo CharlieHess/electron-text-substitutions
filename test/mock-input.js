@@ -1,4 +1,5 @@
 import EventTarget from 'event-target-shim';
+import {Observable} from 'rx-lite';
 
 export default class MockInput extends EventTarget {
   constructor(initialText = "") {
@@ -17,6 +18,11 @@ export default class MockInput extends EventTarget {
     this.selectionStart = this.selectionEnd = this.value.length;
 
     if (dispatch) this.dispatchEvent({type: 'input'});
+  }
+
+  typeText(text) {
+    return Observable.fromArray(text)
+      .subscribe((character) => this.inputText(character));
   }
 
   clearText() {
