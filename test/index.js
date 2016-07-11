@@ -31,7 +31,7 @@ describe('the performTextSubstitution method', () => {
     assert.equal(input.value, 'everything I do deserves… ಠ_ಠ and more disapproval.');
   });
 
-  it('should handle multiple substitutions at once', () => {
+  it('should handle multiple substitutions', () => {
     let input = new MockInput('');
     performTextSubstitution(input, {
       substitutions: [
@@ -40,18 +40,21 @@ describe('the performTextSubstitution method', () => {
       ]
     });
 
-    input.inputText('here is a shrug, and a gaze of disapproval.');
+    input.inputText('here is a shrug,');
+    assert.equal(input.value, 'here is a ¯\\_(ツ)_/¯,');
+
+    input.inputText(' and a gaze of disapproval.');
     assert.equal(input.value, 'here is a ¯\\_(ツ)_/¯, and a gaze of ಠ_ಠ.');
   });
 
-  it('should only substitute the first if multiple matches occur', () => {
+  it('should only substitute word preceding the cursor', () => {
     let input = new MockInput('');
     performTextSubstitution(input, {
       substitutions: [{ replace: 'shrug', with: '¯\\_(ツ)_/¯' }]
     });
 
     input.inputText('multiple shrug shrug shrug ');
-    assert.equal(input.value, 'multiple ¯\\_(ツ)_/¯ shrug shrug ');
+    assert.equal(input.value, 'multiple shrug shrug ¯\\_(ツ)_/¯ ');
   });
 
   it('should handle the man known as shinypb', () => {
@@ -73,7 +76,7 @@ describe('the performTextSubstitution method', () => {
       useSmartDashes: true
     });
 
-    input.inputText('Hello (c) . look here -> or there <- (1/2) is less than (3/4) (r) .... (1/3) (tm)... ');
+    input.typeText('Hello (c) . look here -> or there <- (1/2) is less than (3/4) (r) .... (1/3) (tm)... ');
     assert.equal(input.value, 'Hello © . look here → or there ← ½ is less than ¾ ® … ⅓ ™… ');
   });
 
@@ -85,7 +88,7 @@ describe('the performTextSubstitution method', () => {
       useSmartDashes: true
     });
 
-    input.inputText('\'This is a single quote,\' she said--- \"And this is a double\" ');
+    input.typeText('\'This is a single quote,\' she said--- \"And this is a double\" ');
     assert.equal(input.value, '‘This is a single quote,’ she said— “And this is a double” ');
   });
 
