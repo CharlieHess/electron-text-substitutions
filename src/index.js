@@ -224,16 +224,7 @@ function addInputListener(element, replacementItems) {
           endIndex: searchStartIndex + match.index + match[0].length
         };
 
-        // Are we inserting characters before the end of input (vs appending?)
-        let isInserting = element.selectionEnd !== element.value.length;
-
         replaceText(element, selection, formatReplacement(match, replacement));
-
-        // Our regex includes trailing whitespace / word boundaries, which,
-        // when inserting text, cause the caret position to jump to the end of
-        // the match. We subtract everything to the right of the match
-        // to preserve the caret position.
-        if (isInserting) element.selectionEnd -= match[2].length;
       }
     }
 
