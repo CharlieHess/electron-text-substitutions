@@ -18,8 +18,9 @@ const endsWithWordBoundary = new RegExp(`${wordBoundary.source}$`);
 
 /**
  * @typedef {Object} ReplacementItem
- * @property {String} regExp       A regular expression that matches the text to replace
- * @property {String} replacement  The replacement text
+ * @property {String} match       The text to replace
+ * @property {RegExp} regExp      A regular expression that matches the text to replace
+ * @property {String} replacement The replacement text
  */
 
 /**
@@ -54,7 +55,7 @@ export function getSubstitutionRegExp(match, replacement) {
     `(${wordCharacterOrBoundary})`
   , 'u');
 
-  return { regExp, replacement };
+  return { match, regExp, replacement };
 }
 
 /**
