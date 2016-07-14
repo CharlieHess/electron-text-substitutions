@@ -182,9 +182,11 @@ function getReplacementItems({substitutions, useSmartQuotes, useSmartDashes}) {
   d(`Found ${substitutions.length} substitutions in NSUserDictionaryReplacementItems`);
 
   // NB: Run each replacement string through our smart quotes & dashes regex,
-  // so that an input event doesn't cause chained substitutions.
+  // so that an input event doesn't cause chained substitutions. Also sort 
+  // replacements by length, to handle nested substitutions.
   let userDictionaryReplacements = substitutions
     .filter((substitution) => substitution.on !== false)
+    .sort((a, b) => b.replace.length - a.replace.length)
     .map((substitution) => getSubstitutionRegExp(substitution.replace,
       scrubInputString(substitution.with, additionalReplacements)));
 

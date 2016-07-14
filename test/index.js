@@ -91,8 +91,8 @@ describe('the performTextSubstitution method', () => {
       ]
     });
 
-    input.typeText('<-| is getting replaced with ←|');
-    assert.equal(input.value, '↵ is getting replaced with ←|');
+    input.typeText('<-| is ←|, |-> is |→');
+    assert.equal(input.value, '↵ is ←|, ↳ is |→');
   });
 
   it('should replace quotes & dashes, if enabled', () => {
