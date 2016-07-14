@@ -79,6 +79,21 @@ describe('the performTextSubstitution method', () => {
     input.typeText('Hello (c) . look here -> or there <- (1/2) is less than (3/4) (r) .... (1/3) (tm)... ');
     assert.equal(input.value, 'Hello © . look here → or there ← ½ is less than ¾ ® … ⅓ ™… ');
   });
+  
+  it('should handle the infamous lbo', () => {
+    let input = new MockInput('');
+    performTextSubstitution(input, {
+      substitutions: [
+        { replace: "->", with: "→" },
+        { replace: "<-", with: "←" },
+        { replace: "|->", with: "↳" },
+        { replace: "<-|", with: "↵" }
+      ]
+    });
+
+    input.typeText('<-| is getting replaced with ←|');
+    assert.equal(input.value, '↵ is getting replaced with ←|');
+  });
 
   it('should replace quotes & dashes, if enabled', () => {
     let input = new MockInput('');
