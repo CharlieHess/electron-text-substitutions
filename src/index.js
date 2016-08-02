@@ -6,7 +6,9 @@ import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
 import {isUndoRedoEvent} from './undo-redo-event';
 
 const packageName = 'electron-text-substitutions';
-const d = require('debug-electron')(packageName);
+const d = process.type === 'browser' ?
+  require('debug')(packageName) :
+  console.log.bind(window.console);
 
 const registerForPreferenceChangedIpcMessage = `${packageName}-register-renderer`;
 const unregisterForPreferenceChangedIpcMessage = `${packageName}-unregister-renderer`;
@@ -220,7 +222,7 @@ function addInputListener(element, replacementItems) {
 
       if (match && match.length === 3) {
         d(`Got a match of length ${match[0].length} at index ${match.index}: ${JSON.stringify(match)}`);
-        
+
         if (some(replacementItems, (item) => item.match === match[0])) {
           d(`The match is a prefix of another replacement item (${match[0]}), skip it`);
           continue;
