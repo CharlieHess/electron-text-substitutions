@@ -2,7 +2,7 @@ import electron from 'electron';
 import {forEach, values, some} from 'lodash';
 import {Observable, Disposable, CompositeDisposable, SerialDisposable} from 'rx-lite';
 import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
-  scrubInputString, formatReplacement} from './regular-expressions';
+  scrubInputString, formatReplacement, regExpReplacer, regExpReviver} from './regular-expressions';
 import {isUndoRedoEvent} from './undo-redo-event';
 
 const packageName = 'electron-text-substitutions';
@@ -13,6 +13,7 @@ const d = process.type === 'browser' ?
 const registerForPreferenceChangedIpcMessage = `${packageName}-register-renderer`;
 const unregisterForPreferenceChangedIpcMessage = `${packageName}-unregister-renderer`;
 const preferenceChangedIpcMessage = `${packageName}-preference-changed`;
+const replacementItemsCacheKey = `${packageName}-replacement-items`;
 
 const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
 const userDefaultsSmartQuotesKey = 'NSAutomaticQuoteSubstitutionEnabled';
@@ -63,6 +64,7 @@ export default function performTextSubstitution(element, preferenceOverrides = n
 
   ipcRenderer.on(preferenceChangedIpcMessage, () => {
     d(`User modified text preferences, reattaching listener`);
+    if (canUseLocalStorage()) localStorage.removeItem(replacementItemsCacheKey);
     assignDisposableToListener(element, preferenceOverrides, currentAttach);
   });
 
@@ -141,7 +143,7 @@ function notifyAllListeners() {
 
 function assignDisposableToListener(element, preferenceOverrides, currentAttach = null) {
   let textPreferences = preferenceOverrides || readSystemTextPreferences();
-  let replacementItems = getReplacementItems(textPreferences);
+  let replacementItems = getOrCreateReplacementItems(textPreferences, preferenceOverrides);
 
   currentAttach = currentAttach || new SerialDisposable();
   currentAttach.setDisposable(addInputListener(element, replacementItems));
@@ -163,6 +165,26 @@ function readSystemTextPreferences() {
  * @property {Bool}   on      True if this substitution is enabled
  */
 
+/**
+ * Returns replacement items from localStorage, if we've cached any, or creates
+ * them from scratch. If there is a large number of substitutions, creating
+ * them is time-consuming, but deserializing them is cheap.
+ */
+function getOrCreateReplacementItems(textPreferences, preferenceOverrides) {
+  if (canUseLocalStorage() && !preferenceOverrides) {
+    let cachedItems = localStorage.getItem(replacementItemsCacheKey);
+    if (cachedItems !== null) {
+      return JSON.parse(cachedItems, regExpReviver);
+    } else {
+      let replacementItems = createReplacementItems(textPreferences);
+      localStorage.setItem(replacementItemsCacheKey, JSON.stringify(replacementItems, regExpReplacer));
+      return replacementItems;
+    }
+  } else {
+    return createReplacementItems(textPreferences);
+  }
+}
+
  /**
   * Creates a regular expression for each text substitution entry, in addition
   * to expressions for smart quotes and dashes (if they're enabled).
@@ -172,7 +194,7 @@ function readSystemTextPreferences() {
   * @param  {Bool} useSmartDashes}                    True if smart dashes is on
   * @return {Array<ReplacementItem>}                  An array of replacement items
   */
-function getReplacementItems({substitutions, useSmartQuotes, useSmartDashes}) {
+function createReplacementItems({substitutions, useSmartQuotes, useSmartDashes}) {
   d(`Smart quotes are ${useSmartQuotes ? 'on' : 'off'}`);
   d(`Smart dashes are ${useSmartDashes ? 'on' : 'off'}`);
 
@@ -194,7 +216,7 @@ function getReplacementItems({substitutions, useSmartQuotes, useSmartDashes}) {
       scrubInputString(substitution.with, additionalReplacements)));
 
   let elapsed = Date.now() - startTime;
-  d(`Spent ${elapsed} ms in getReplacementItems`);
+  d(`Spent ${elapsed} ms in createReplacementItems`);
 
   return [
     ...userDictionaryReplacements,
@@ -305,4 +327,10 @@ function replaceText(element, {startIndex, endIndex}, newText) {
 
   d(`Replacing ${element.value.substring(startIndex, endIndex)} with ${newText}`);
   element.dispatchEvent(textEvent);
+}
+
+function canUseLocalStorage() {
+  return window.location.protocol !== 'data:' &&
+    window.location.protocol !== 'about:' &&
+    window.localStorage;
 }
