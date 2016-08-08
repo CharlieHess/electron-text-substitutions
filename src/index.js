@@ -2,7 +2,7 @@ import electron from 'electron';
 import {forEach, values, some} from 'lodash';
 import {Observable, Disposable, CompositeDisposable, SerialDisposable} from 'rx-lite';
 import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
-  scrubInputString, formatReplacement, regExpReplacer, regExpReviver} from './regular-expressions';
+  scrubInputString, formatReplacement} from './regular-expressions';
 import {isUndoRedoEvent} from './undo-redo-event';
 
 const packageName = 'electron-text-substitutions';
@@ -13,7 +13,6 @@ const d = process.type === 'browser' ?
 const registerForPreferenceChangedIpcMessage = `${packageName}-register-renderer`;
 const unregisterForPreferenceChangedIpcMessage = `${packageName}-unregister-renderer`;
 const preferenceChangedIpcMessage = `${packageName}-preference-changed`;
-const replacementItemsCacheKey = `${packageName}-replacement-items`;
 
 const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
 const userDefaultsSmartQuotesKey = 'NSAutomaticQuoteSubstitutionEnabled';
@@ -27,7 +26,7 @@ const textPreferenceChangedKeys = [
 
 let ipcMain, ipcRenderer, systemPreferences;
 let registeredWebContents = {};
-let listenerCount = 0;
+let replacementItems;
 
 /**
  * Adds an `input` event listener to the given element (an <input> or
@@ -54,13 +53,6 @@ export default function performTextSubstitution(element, preferenceOverrides = n
     throw new Error(`Electron ${process.versions.electron} is not supported`);
   }
 
-  // Always clear the cache on startup, in case preference changes were made
-  // while the app was not running
-  if (listenerCount++ === 0 && canUseLocalStorage()) {
-    localStorage.removeItem(replacementItemsCacheKey);
-  }
-  d(`${listenerCount} total substitution listeners`);
-
   ipcRenderer.send(registerForPreferenceChangedIpcMessage);
 
   window.addEventListener('beforeunload', () => {
@@ -72,7 +64,7 @@ export default function performTextSubstitution(element, preferenceOverrides = n
 
   ipcRenderer.on(preferenceChangedIpcMessage, () => {
     d(`User modified text preferences, reattaching listener`);
-    if (canUseLocalStorage()) localStorage.removeItem(replacementItemsCacheKey);
+    replacementItems = null;
     assignDisposableToListener(element, preferenceOverrides, currentAttach);
   });
 
@@ -151,7 +143,9 @@ function notifyAllListeners() {
 
 function assignDisposableToListener(element, preferenceOverrides, currentAttach = null) {
   let textPreferences = preferenceOverrides || readSystemTextPreferences();
-  let replacementItems = getOrCreateReplacementItems(textPreferences, preferenceOverrides);
+  replacementItems = preferenceOverrides ?
+    createReplacementItems(textPreferences) :
+    replacementItems || createReplacementItems(textPreferences);
 
   currentAttach = currentAttach || new SerialDisposable();
   currentAttach.setDisposable(addInputListener(element, replacementItems));
@@ -172,26 +166,6 @@ function readSystemTextPreferences() {
  * @property {String} with    The replacement text
  * @property {Bool}   on      True if this substitution is enabled
  */
-
-/**
- * Returns replacement items from localStorage, if we've cached any, or creates
- * them from scratch. If there is a large number of substitutions, creating
- * them is time-consuming, but deserializing them is cheap.
- */
-function getOrCreateReplacementItems(textPreferences, preferenceOverrides) {
-  if (canUseLocalStorage() && !preferenceOverrides) {
-    let cachedItems = localStorage.getItem(replacementItemsCacheKey);
-    if (cachedItems !== null) {
-      return JSON.parse(cachedItems, regExpReviver);
-    } else {
-      let replacementItems = createReplacementItems(textPreferences);
-      localStorage.setItem(replacementItemsCacheKey, JSON.stringify(replacementItems, regExpReplacer));
-      return replacementItems;
-    }
-  } else {
-    return createReplacementItems(textPreferences);
-  }
-}
 
  /**
   * Creates a regular expression for each text substitution entry, in addition
@@ -335,10 +309,4 @@ function replaceText(element, {startIndex, endIndex}, newText) {
 
   d(`Replacing ${element.value.substring(startIndex, endIndex)} with ${newText}`);
   element.dispatchEvent(textEvent);
-}
-
-function canUseLocalStorage() {
-  return window.location.protocol !== 'data:' &&
-    window.location.protocol !== 'about:' &&
-    window.localStorage;
 }
