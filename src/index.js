@@ -27,6 +27,7 @@ const textPreferenceChangedKeys = [
 
 let ipcMain, ipcRenderer, systemPreferences;
 let registeredWebContents = {};
+let listenerCount = 0;
 
 /**
  * Adds an `input` event listener to the given element (an <input> or
@@ -52,6 +53,13 @@ export default function performTextSubstitution(element, preferenceOverrides = n
   if (!systemPreferences || !systemPreferences.getUserDefault) {
     throw new Error(`Electron ${process.versions.electron} is not supported`);
   }
+
+  // Always clear the cache on startup, in case preference changes were made
+  // while the app was not running
+  if (listenerCount++ === 0 && canUseLocalStorage()) {
+    localStorage.removeItem(replacementItemsCacheKey);
+  }
+  d(`${listenerCount} total substitution listeners`);
 
   ipcRenderer.send(registerForPreferenceChangedIpcMessage);
 
