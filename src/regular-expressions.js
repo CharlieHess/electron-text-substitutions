@@ -108,3 +108,24 @@ export function formatReplacement(match, replacement) {
   let [, left, right] = match;
   return `${left}${replacement}${right}`;
 }
+
+/**
+ * Can be used as the replacer parameter in `JSON.stringify` to serialize
+ * replacement items.
+ */
+export function regExpReplacer(key, value) {
+  if (value instanceof RegExp) return value.toString();
+  return value;
+}
+
+/**
+ * Can be used as the reviver parameter in `JSON.parse` to deserialize
+ * replacement items.
+ */
+export function regExpReviver(key, value) {
+  if (key === 'regExp') {
+    let [, regExp, flags] = value.match(/\/(.*)\/(.*)?/);
+    return new RegExp(regExp, flags || '');
+  }
+  return value;
+}
