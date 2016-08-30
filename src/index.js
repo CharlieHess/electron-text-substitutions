@@ -2,7 +2,7 @@ import electron from 'electron';
 import {forEach, values, some} from 'lodash';
 import {Observable, Disposable, CompositeDisposable, SerialDisposable} from 'rx-lite';
 import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
-  scrubInputString, formatReplacement} from './regular-expressions';
+  scrubInputString, formatReplacement, regExpReplacer, regExpReviver} from './regular-expressions';
 import {isUndoRedoEvent} from './undo-redo-event';
 
 const packageName = 'electron-text-substitutions';
@@ -23,6 +23,7 @@ const textPreferenceChangedKeys = [
 ];
 
 let ipcMain, ipcRenderer, systemPreferences;
+let replacementItems = null;
 let registeredWebContents = {};
 
 /**
@@ -57,11 +58,18 @@ export default function performTextSubstitution(element, preferenceOverrides = n
     ipcRenderer.send(unregisterForPreferenceChangedIpcMessage);
   });
 
-  let currentAttach = assignDisposableToListener(element, preferenceOverrides);
+  if (preferenceOverrides) {
+    replacementItems = getReplacementItems(preferenceOverrides);
+  } else if (!replacementItems) {
+    replacementItems = getReplacementItems(readSystemTextPreferences());
+  }
 
-  ipcRenderer.on(preferenceChangedIpcMessage, () => {
+  let currentAttach = assignDisposableToListener(element, replacementItems);
+
+  ipcRenderer.on(preferenceChangedIpcMessage, (e, serializedItems) => {
     d(`User modified text preferences, reattaching listener`);
-    assignDisposableToListener(element, preferenceOverrides, currentAttach);
+    replacementItems = JSON.parse(serializedItems, regExpReviver);
+    assignDisposableToListener(element, replacementItems, currentAttach);
   });
 
   return currentAttach;
@@ -127,20 +135,21 @@ function observableForPreferenceNotification(preferenceChangedKey) {
  * unless it has been destroyed, in which case remove it from our list.
  */
 function notifyAllListeners() {
+  let textPreferences = readSystemTextPreferences();
+  let replacementItems = getReplacementItems(textPreferences);
+  let serializedItems = JSON.stringify(replacementItems, regExpReplacer);
+
   forEach(values(registeredWebContents), ({id, sender}) => {
     if (sender.isDestroyed() || sender.isCrashed()) {
       d(`WebContents ${id} is gone, removing it`);
       delete registeredWebContents[id];
     } else {
-      sender.send(preferenceChangedIpcMessage);
+      sender.send(preferenceChangedIpcMessage, serializedItems);
     }
   });
 }
 
-function assignDisposableToListener(element, preferenceOverrides, currentAttach = null) {
-  let textPreferences = preferenceOverrides || readSystemTextPreferences();
-  let replacementItems = getReplacementItems(textPreferences);
-
+function assignDisposableToListener(element, replacementItems, currentAttach = null) {
   currentAttach = currentAttach || new SerialDisposable();
   currentAttach.setDisposable(addInputListener(element, replacementItems));
   return currentAttach;
