@@ -1,12 +1,16 @@
 import electron from 'electron';
-import {some} from 'lodash';
-import {Disposable, CompositeDisposable, SerialDisposable} from 'rx-lite';
+import {forEach, values, some} from 'lodash';
+import {Observable, Disposable, CompositeDisposable, SerialDisposable} from 'rx-lite';
 import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
   scrubInputString, formatReplacement} from './regular-expressions';
 import {isUndoRedoEvent} from './undo-redo-event';
 
 const packageName = 'electron-text-substitutions';
 const d = require('debug-electron')(packageName);
+
+const registerForPreferenceChangedIpcMessage = `${packageName}-register-renderer`;
+const unregisterForPreferenceChangedIpcMessage = `${packageName}-unregister-renderer`;
+const preferenceChangedIpcMessage = `${packageName}-preference-changed`;
 
 const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
 const userDefaultsSmartQuotesKey = 'NSAutomaticQuoteSubstitutionEnabled';
@@ -18,7 +22,8 @@ const textPreferenceChangedKeys = [
   'NSAutomaticDashSubstitutionEnabledChanged'
 ];
 
-let systemPreferences, replacementItems;
+let ipcMain, ipcRenderer, systemPreferences;
+let registeredWebContents = {};
 
 /**
  * Adds an `input` event listener to the given element (an <input> or
@@ -38,46 +43,103 @@ export default function performTextSubstitution(element, preferenceOverrides = n
   if (!process || !process.type === 'renderer') throw new Error(`Not in an Electron renderer context`);
   if (process.platform !== 'darwin') throw new Error(`Only supported on OS X`);
 
+  ipcRenderer = ipcRenderer || electron.ipcRenderer;
   systemPreferences = systemPreferences || electron.remote.systemPreferences;
 
   if (!systemPreferences || !systemPreferences.getUserDefault) {
     throw new Error(`Electron ${process.versions.electron} is not supported`);
   }
 
-  let currentAttach = assignDisposableToListener(element, preferenceOverrides);
-  let subscriptionIds = [];
-
-  // TODO: It'd be much more efficient to only subscribe these once, rather
-  // than for each input element.
-  for (let preferenceChangedKey of textPreferenceChangedKeys) {
-    subscriptionIds.push(systemPreferences.subscribeNotification(preferenceChangedKey, () => {
-      replacementItems = null;
-      d(`User modified ${preferenceChangedKey}, reattaching listener`);
-      assignDisposableToListener(element, preferenceOverrides, currentAttach);
-    }));
-  }
-
-  let changeHandlerDisposable = new Disposable(() => {
-    for (let subscriptionId of subscriptionIds) {
-      systemPreferences.unsubscribeNotification(subscriptionId);
-    }
-    d(`Cleaned up all listeners`);
-  });
-
-  let combinedDisposable = new CompositeDisposable(currentAttach, changeHandlerDisposable);
+  ipcRenderer.send(registerForPreferenceChangedIpcMessage);
 
   window.addEventListener('beforeunload', () => {
-    combinedDisposable.dispose();
+    d(`Window unloading, unregister any listeners`);
+    ipcRenderer.send(unregisterForPreferenceChangedIpcMessage);
   });
 
-  return combinedDisposable;
+  let currentAttach = assignDisposableToListener(element, preferenceOverrides);
+
+  ipcRenderer.on(preferenceChangedIpcMessage, () => {
+    d(`User modified text preferences, reattaching listener`);
+    assignDisposableToListener(element, preferenceOverrides, currentAttach);
+  });
+
+  return currentAttach;
+}
+
+/**
+ * Subscribes to text preference changed notifications and notifies listeners
+ * in renderer processes. This method must be called from the main process, and
+ * should be called before any renderer process calls `performTextSubstitution`.
+ *
+ * @return {Disposable}  A `Disposable` that will clean up everything this method did
+ */
+export function listenForPreferenceChanges() {
+  if (!process || !process.type === 'browser') throw new Error(`Not in an Electron browser context`);
+  if (process.platform !== 'darwin') throw new Error(`Only supported on OS X`);
+
+  ipcMain = ipcMain || electron.ipcMain;
+  systemPreferences = systemPreferences || electron.systemPreferences;
+
+  ipcMain.on(registerForPreferenceChangedIpcMessage, ({sender}) => {
+    let id = sender.getId();
+    d(`Registering webContents ${id} for preference changes`);
+    registeredWebContents[id] = { id, sender };
+  });
+
+  ipcMain.on(unregisterForPreferenceChangedIpcMessage, ({sender}) => {
+    d(`Unregistering webContents ${sender.getId()}`);
+    delete registeredWebContents[sender.getId()];
+  });
+
+  let notificationDisp = Observable.fromArray(textPreferenceChangedKeys)
+    .flatMap((key) => observableForPreferenceNotification(key))
+    .debounce(1000)
+    .subscribe(notifyAllListeners);
+
+  return new CompositeDisposable(
+    notificationDisp,
+    new Disposable(() => ipcMain.removeAllListeners(registerForPreferenceChangedIpcMessage)),
+    new Disposable(() => ipcMain.removeAllListeners(unregisterForPreferenceChangedIpcMessage))
+  );
+}
+
+/**
+ * Creates an Observable that will `onNext` when the given key in
+ * `NSUserDefaults` changes.
+ *
+ * @param  {String} preferenceChangedKey  The key to listen for
+ * @return {Disposable}                   A Disposable that will unsubscribe the listener
+ */
+function observableForPreferenceNotification(preferenceChangedKey) {
+  return Observable.create((subj) => {
+    let subscriberId = systemPreferences.subscribeNotification(preferenceChangedKey, () => {
+      d(`Got a ${preferenceChangedKey}`);
+      subj.onNext(preferenceChangedKey);
+    });
+
+    return new Disposable(() => systemPreferences.unsubscribeNotification(subscriberId));
+  });
+}
+
+/**
+ * Sends an IPC message to each `WebContents` that is doing text substitution,
+ * unless it has been destroyed, in which case remove it from our list.
+ */
+function notifyAllListeners() {
+  forEach(values(registeredWebContents), ({id, sender}) => {
+    if (sender.isDestroyed() || sender.isCrashed()) {
+      d(`WebContents ${id} is gone, removing it`);
+      delete registeredWebContents[id];
+    } else {
+      sender.send(preferenceChangedIpcMessage);
+    }
+  });
 }
 
 function assignDisposableToListener(element, preferenceOverrides, currentAttach = null) {
   let textPreferences = preferenceOverrides || readSystemTextPreferences();
-  replacementItems = preferenceOverrides ?
-    createReplacementItems(textPreferences) :
-    replacementItems || createReplacementItems(textPreferences);
+  let replacementItems = getReplacementItems(textPreferences);
 
   currentAttach = currentAttach || new SerialDisposable();
   currentAttach.setDisposable(addInputListener(element, replacementItems));
@@ -108,7 +170,7 @@ function readSystemTextPreferences() {
   * @param  {Bool} useSmartDashes}                    True if smart dashes is on
   * @return {Array<ReplacementItem>}                  An array of replacement items
   */
-function createReplacementItems({substitutions, useSmartQuotes, useSmartDashes}) {
+function getReplacementItems({substitutions, useSmartQuotes, useSmartDashes}) {
   d(`Smart quotes are ${useSmartQuotes ? 'on' : 'off'}`);
   d(`Smart dashes are ${useSmartDashes ? 'on' : 'off'}`);
 
@@ -122,15 +184,11 @@ function createReplacementItems({substitutions, useSmartQuotes, useSmartDashes})
   // NB: Run each replacement string through our smart quotes & dashes regex,
   // so that an input event doesn't cause chained substitutions. Also sort
   // replacements by length, to handle nested substitutions.
-  let startTime = Date.now();
   let userDictionaryReplacements = substitutions
     .filter((substitution) => substitution.on !== false)
     .sort((a, b) => b.replace.length - a.replace.length)
     .map((substitution) => getSubstitutionRegExp(substitution.replace,
       scrubInputString(substitution.with, additionalReplacements)));
-
-  let elapsed = Date.now() - startTime;
-  d(`Spent ${elapsed} ms in createReplacementItems`);
 
   return [
     ...userDictionaryReplacements,

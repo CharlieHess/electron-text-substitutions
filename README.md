@@ -26,7 +26,16 @@ let input = document.getElementById('my-input');
 performTextSubstitution(input);
 ```
 
-We use the [`system-preferences`](http://electron.atom.io/docs/api/system-preferences/#systempreferences) API to get the user's text substitutions. If you have smart quotes or dashes enabled, we'll handle that too. If you change any of the system text preferences, the listener will be automatically updated.
+We use the [`system-preferences`](http://electron.atom.io/docs/api/system-preferences/#systempreferences) API to get the user's text substitutions. If you have smart quotes or dashes enabled, we'll handle that too.
+
+#### Change notifications
+
+To receive text preference change notifications, you'll need to call an additional method, that only works in the main process. This should be called before any renderer starts using text substitutions.
+
+``` js
+import {listenForPreferenceChanges} from 'electron-text-substitutions';
+listenForPreferenceChanges();
+```
 
 ## API
 
@@ -42,4 +51,17 @@ We use the [`system-preferences`](http://electron.atom.io/docs/api/system-prefer
  * @return {Disposable}           A `Disposable` that will clean up everything this method did
  */
 performTextSubstitution(element);
+```
+
+#### Main Process
+
+``` js
+/**
+ * Subscribes to text preference changed notifications and notifies listeners
+ * in renderer processes. This method must be called from the main process, and
+ * should be called before any renderer process calls `performTextSubstitution`.
+ *
+ * @return {Disposable}  A `Disposable` that will clean up everything this method did
+ */
+listenForPreferenceChanges() {
 ```
