@@ -1,7 +1,9 @@
 const keyCodes = {
   y: 89,
   z: 90,
-  Z: 122
+  Z: 122,
+  backspace: 8,
+  delete: 46
 };
 
 /**
@@ -22,4 +24,14 @@ export function isUndoRedoEvent({keyCode, metaKey, ctrlKey, shiftKey, altKey}) {
     return ctrlKey && !metaKey && !shiftKey && !altKey &&
       (keyCode === keyCodes.z || keyCode === keyCodes.y);
   }
+}
+
+/**
+ * Returns true if this event is a backspace or delete key press.
+ *
+ * @param  {Number} {keyCode} The key code from the event
+ * @return {Bool}             True if backspace or delete was pressed
+ */
+export function isBackspaceEvent({keyCode}) {
+  return keyCode === keyCodes.backspace || keyCode === keyCodes.delete;
 }

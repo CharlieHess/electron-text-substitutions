@@ -3,7 +3,7 @@ import {forEach, values, some} from 'lodash';
 import {Observable, Disposable, CompositeDisposable, SerialDisposable} from 'rx-lite';
 import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
   scrubInputString, formatReplacement, regExpReplacer, regExpReviver} from './regular-expressions';
-import {isUndoRedoEvent} from './undo-redo-event';
+import {isUndoRedoEvent, isBackspaceEvent} from './keyboard-utils';
 
 const packageName = 'electron-text-substitutions';
 const d = require('debug-electron')(packageName);
@@ -248,8 +248,8 @@ function addInputListener(element, replacementItems) {
   };
 
   let keyDownListener = (e) => {
-    if (isUndoRedoEvent(e)) {
-      d(`Undo or redo text from ${e.target.value}`);
+    if (isUndoRedoEvent(e) || isBackspaceEvent(e)) {
+      d(`Ignoring keydown event from ${e.target.value}`);
       ignoreEvent = true;
     }
   };
