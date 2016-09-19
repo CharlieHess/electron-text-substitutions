@@ -194,7 +194,8 @@ function getReplacementItems({substitutions, useSmartQuotes, useSmartDashes}) {
   // so that an input event doesn't cause chained substitutions. Also sort
   // replacements by length, to handle nested substitutions.
   let userDictionaryReplacements = substitutions
-    .filter((substitution) => substitution.on !== false)
+    .filter((substitution) => substitution.on !== false &&
+      substitution.replace !== substitution.with)
     .sort((a, b) => b.replace.length - a.replace.length)
     .map((substitution) => getSubstitutionRegExp(substitution.replace,
       scrubInputString(substitution.with, additionalReplacements)));
@@ -213,7 +214,9 @@ function getReplacementItems({substitutions, useSmartQuotes, useSmartDashes}) {
  */
 function getElementText(element) {
   if (!element) return '';
-  return element.value || element.textContent;
+  if (element.value) return element.value;
+  if (element.textContent.endsWith('\n')) return element.textContent.slice(0, -1);
+  return element.textContent;
 }
 
 /**
@@ -236,7 +239,7 @@ function addInputListener(element, replacementItems) {
       // This is to avoid substitutions after, say, a paste or an undo.
       let value = getElementText(element);
       let searchStartIndex = lastIndexOfWhitespace(value, element.selectionEnd);
-      let lastWordBlock = element.value.substring(searchStartIndex, element.selectionEnd);
+      let lastWordBlock = value.substring(searchStartIndex, element.selectionEnd);
       let match = lastWordBlock.match(regExp);
 
       if (match && match.length === 3) {
@@ -315,9 +318,54 @@ function replaceText(element, {startIndex, endIndex}, newText) {
   let textEvent = document.createEvent('TextEvent');
   textEvent.initTextEvent('textInput', true, true, null, newText);
 
-  element.selectionStart = startIndex;
-  element.selectionEnd = endIndex;
+  setSelectionRange(element, startIndex, endIndex);
 
-  d(`Replacing ${element.value.substring(startIndex, endIndex)} with ${newText}`);
+  d(`Replacing ${getElementText(element).substring(startIndex, endIndex)} with ${newText}`);
   element.dispatchEvent(textEvent);
+}
+
+/**
+ * Sets the selection range of a given input element. If the element is not an
+ * `input` or `textarea`, we need to get into the `Range` game.
+ *
+ * @param  {type} element    The DOM node where text will be selected
+ * @param  {type} startIndex Start index of the selection
+ * @param  {type} endIndex   End index of the selection
+ */
+function setSelectionRange(element, startIndex, endIndex) {
+  if (element.value) {
+    element.selectionStart = startIndex;
+    element.selectionEnd = endIndex;
+  } else {
+    let charIndex = 0;
+    let range = document.createRange();
+    range.setStart(element, 0);
+    range.collapse(true);
+
+    let nodeStack = [element], node, foundStart = false, stop = false;
+
+    while (!stop && (node = nodeStack.pop())) {
+      if (node.nodeType == Node.TEXT_NODE) {
+        let nextCharIndex = charIndex + node.length;
+        if (!foundStart && startIndex >= charIndex && startIndex <= nextCharIndex) {
+          range.setStart(node, startIndex - charIndex);
+          foundStart = true;
+        }
+        if (foundStart && endIndex >= charIndex && endIndex <= nextCharIndex) {
+          range.setEnd(node, endIndex - charIndex);
+          stop = true;
+        }
+        charIndex = nextCharIndex;
+      } else {
+        var i = node.childNodes.length;
+        while (i--) {
+          nodeStack.push(node.childNodes[i]);
+        }
+      }
+    }
+
+    let selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
 }
