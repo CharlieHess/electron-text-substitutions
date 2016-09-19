@@ -236,7 +236,7 @@ function addInputListener(element, replacementItems) {
       // This is to avoid substitutions after, say, a paste or an undo.
       let value = getElementText(element);
       let searchStartIndex = lastIndexOfWhitespace(value, element.selectionEnd);
-      let lastWordBlock = element.value.substring(searchStartIndex, element.selectionEnd);
+      let lastWordBlock = value.substring(searchStartIndex, element.selectionEnd);
       let match = lastWordBlock.match(regExp);
 
       if (match && match.length === 3) {
@@ -318,6 +318,6 @@ function replaceText(element, {startIndex, endIndex}, newText) {
   element.selectionStart = startIndex;
   element.selectionEnd = endIndex;
 
-  d(`Replacing ${element.value.substring(startIndex, endIndex)} with ${newText}`);
+  d(`Replacing ${getElementText(element).substring(startIndex, endIndex)} with ${newText}`);
   element.dispatchEvent(textEvent);
 }
