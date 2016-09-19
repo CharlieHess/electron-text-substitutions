@@ -1,6 +1,7 @@
 import assert from 'assert';
 import performTextSubstitution from '../src';
 import MockInput from './mock-input';
+import MockContenteditable from './mock-contenteditable';
 
 describe('the performTextSubstitution method', () => {
   it('should error when not given an EventTarget', () => {
@@ -8,13 +9,17 @@ describe('the performTextSubstitution method', () => {
   });
 
   it('should replace text after an input event', () => {
-    let input = new MockInput('something, something');
-    performTextSubstitution(input, {
-      substitutions: [{ replace: 'shrug', with: '¯\\_(ツ)_/¯' }]
-    });
+    let text = 'something, something';
+    let targets = [new MockInput(text), new MockContenteditable(text)];
 
-    input.inputText(' shrug ');
-    assert.equal(input.value, 'something, something ¯\\_(ツ)_/¯ ');
+    targets.forEach(input => {
+      performTextSubstitution(input, {
+        substitutions: [{ replace: 'shrug', with: '¯\\_(ツ)_/¯' }]
+      });
+
+      input.inputText(' shrug ');
+      assert.equal(input.value, 'something, something ¯\\_(ツ)_/¯ ');
+    });
   });
 
   it('should stop replacing when unsubscribed', () => {

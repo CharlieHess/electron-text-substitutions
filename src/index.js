@@ -206,6 +206,17 @@ function getReplacementItems({substitutions, useSmartQuotes, useSmartDashes}) {
 }
 
 /**
+ * Get the string value of Text, Elements, and form elements
+ *
+ * @param  {Element} element  The element whose text will be retrieved
+ * @return {String}           The text value of the element
+ */
+function getElementText(element) {
+  if (!element) return '';
+  return element.value || element.textContent;
+}
+
+/**
  * Subscribes to the `input` event and performs text substitution.
  *
  * @param  {EventTarget} element                      The DOM node to listen to
@@ -223,7 +234,8 @@ function addInputListener(element, replacementItems) {
       // Rather than search the entire input, we're just going to check the word
       // immediately before the caret (along with its surrounding whitespace).
       // This is to avoid substitutions after, say, a paste or an undo.
-      let searchStartIndex = lastIndexOfWhitespace(element.value, element.selectionEnd);
+      let value = getElementText(element);
+      let searchStartIndex = lastIndexOfWhitespace(value, element.selectionEnd);
       let lastWordBlock = element.value.substring(searchStartIndex, element.selectionEnd);
       let match = lastWordBlock.match(regExp);
 
