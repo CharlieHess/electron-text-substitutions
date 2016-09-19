@@ -194,7 +194,8 @@ function getReplacementItems({substitutions, useSmartQuotes, useSmartDashes}) {
   // so that an input event doesn't cause chained substitutions. Also sort
   // replacements by length, to handle nested substitutions.
   let userDictionaryReplacements = substitutions
-    .filter((substitution) => substitution.on !== false)
+    .filter((substitution) => substitution.on !== false &&
+      substitution.replace !== substitution.with)
     .sort((a, b) => b.replace.length - a.replace.length)
     .map((substitution) => getSubstitutionRegExp(substitution.replace,
       scrubInputString(substitution.with, additionalReplacements)));
