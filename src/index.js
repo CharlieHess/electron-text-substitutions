@@ -213,7 +213,9 @@ function getReplacementItems({substitutions, useSmartQuotes, useSmartDashes}) {
  */
 function getElementText(element) {
   if (!element) return '';
-  return element.value || element.textContent;
+  if (element.value) return element.value;
+  if (element.textContent.endsWith('\n')) return element.textContent.slice(0, -1);
+  return element.textContent;
 }
 
 /**
