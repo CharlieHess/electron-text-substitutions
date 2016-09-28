@@ -1,6 +1,14 @@
 import electron from 'electron';
-import {forEach, values, some} from 'lodash';
-import {Observable, Disposable, CompositeDisposable, SerialDisposable} from 'rx-lite';
+import values from 'lodash.values';
+import forEach from 'lodash.foreach';
+import some from 'lodash.some';
+
+import 'rxjs/add/observable/from';
+import 'rxjs/add/operator/mergeMap';
+import 'rxjs/add/operator/debounceTime';
+import {Observable} from 'rxjs/Observable';
+import {Subscription} from 'rxjs/Subscription';
+import {SerialSubscription} from './serial-subscription';
 import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
   scrubInputString, formatReplacement, regExpReplacer, regExpReviver} from './regular-expressions';
 import {isUndoRedoEvent, isBackspaceEvent} from './keyboard-utils';
@@ -37,7 +45,7 @@ let registeredWebContents = {};
  * @param  {EventTarget} element          The DOM node to listen to; should fire the `input` event
  * @param  {Object} preferenceOverrides   Used to override text preferences in testing
  *
- * @return {Disposable}                   A `Disposable` that will clean up everything this method did
+ * @return {Subscription}                   A `Subscription` that will clean up everything this method did
  */
 export default function performTextSubstitution(element, preferenceOverrides = null) {
   if (!element || !element.addEventListener) throw new Error(`Element is null or not an EventTarget`);
@@ -80,7 +88,7 @@ export default function performTextSubstitution(element, preferenceOverrides = n
  * in renderer processes. This method must be called from the main process, and
  * should be called before any renderer process calls `performTextSubstitution`.
  *
- * @return {Disposable}  A `Disposable` that will clean up everything this method did
+ * @return {Subscription}  A `Subscription` that will clean up everything this method did
  */
 export function listenForPreferenceChanges() {
   if (!process || !process.type === 'browser') throw new Error(`Not in an Electron browser context`);
@@ -100,33 +108,33 @@ export function listenForPreferenceChanges() {
     delete registeredWebContents[sender.getId()];
   });
 
-  let notificationDisp = Observable.fromArray(textPreferenceChangedKeys)
+  let notificationDisp = Observable.from(textPreferenceChangedKeys)
     .flatMap((key) => observableForPreferenceNotification(key))
-    .debounce(1000)
+    .debounceTime(1000)
     .subscribe(notifyAllListeners);
 
-  return new CompositeDisposable(
-    notificationDisp,
-    new Disposable(() => ipcMain.removeAllListeners(registerForPreferenceChangedIpcMessage)),
-    new Disposable(() => ipcMain.removeAllListeners(unregisterForPreferenceChangedIpcMessage))
-  );
+  const ret = new Subscription();
+  ret.add(notificationDisp);
+  ret.add(new Subscription(() => ipcMain.removeAllListeners(registerForPreferenceChangedIpcMessage)));
+  ret.add(new Subscription(() => ipcMain.removeAllListeners(unregisterForPreferenceChangedIpcMessage)));
+  return ret;
 }
 
 /**
- * Creates an Observable that will `onNext` when the given key in
+ * Creates an Observable that will emit when the given key in
  * `NSUserDefaults` changes.
  *
  * @param  {String} preferenceChangedKey  The key to listen for
- * @return {Disposable}                   A Disposable that will unsubscribe the listener
+ * @return {Subscription}                   A Subscription that will unsubscribe the listener
  */
 function observableForPreferenceNotification(preferenceChangedKey) {
   return Observable.create((subj) => {
     let subscriberId = systemPreferences.subscribeNotification(preferenceChangedKey, () => {
       d(`Got a ${preferenceChangedKey}`);
-      subj.onNext(preferenceChangedKey);
+      subj.next(preferenceChangedKey);
     });
 
-    return new Disposable(() => systemPreferences.unsubscribeNotification(subscriberId));
+    return new Subscription(() => systemPreferences.unsubscribeNotification(subscriberId));
   });
 }
 
@@ -150,8 +158,8 @@ function notifyAllListeners() {
 }
 
 function assignDisposableToListener(element, replacementItems, currentAttach = null) {
-  currentAttach = currentAttach || new SerialDisposable();
-  currentAttach.setDisposable(addInputListener(element, replacementItems));
+  currentAttach = currentAttach || new SerialSubscription();
+  currentAttach.add(addInputListener(element, replacementItems));
   return currentAttach;
 }
 
@@ -224,7 +232,7 @@ function getElementText(element) {
  *
  * @param  {EventTarget} element                      The DOM node to listen to
  * @param  {Array<ReplacementItem>} replacementItems  An array of replacement items
- * @return {Disposable}                               A `Disposable` that will remove the listener
+ * @return {Subscription}                               A `Subscription` that will remove the listener
  */
 function addInputListener(element, replacementItems) {
   let ignoreEvent = false;
@@ -284,7 +292,7 @@ function addInputListener(element, replacementItems) {
 
   d(`Added input listener to ${element.id} matching against ${replacementItems.length} replacements`);
 
-  return new Disposable(() => {
+  return new Subscription(() => {
     element.removeEventListener('keydown', keyDownListener);
     element.removeEventListener('paste', pasteListener);
     element.removeEventListener('keyup', keyUpListener);

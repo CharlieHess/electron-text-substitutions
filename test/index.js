@@ -30,7 +30,7 @@ describe('the performTextSubstitution method', () => {
 
     input.inputText('disapproval ');
     assert.equal(input.value, 'everything I do deserves… ಠ_ಠ ');
-    disposable.dispose();
+    disposable.unsubscribe();
 
     input.inputText('and more disapproval.');
     assert.equal(input.value, 'everything I do deserves… ಠ_ಠ and more disapproval.');
@@ -120,7 +120,7 @@ describe('the performTextSubstitution method', () => {
 
     input.inputText('greetings ');
     assert.equal(input.value, 'Hello-- my name is \'Milo,\' how do you do? ');
-    disposable.dispose();
+    disposable.unsubscribe();
     input.clearText();
 
     performTextSubstitution(input, {

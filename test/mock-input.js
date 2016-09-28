@@ -1,5 +1,5 @@
 import EventTarget from 'event-target-shim';
-import {Observable} from 'rx-lite';
+import {Observable} from 'rxjs';
 
 export default class MockInput extends EventTarget {
   constructor(initialText = "") {
@@ -21,7 +21,7 @@ export default class MockInput extends EventTarget {
   }
 
   typeText(text) {
-    return Observable.fromArray(text)
+    return Observable.from(text)
       .subscribe((character) => this.inputText(character));
   }
 

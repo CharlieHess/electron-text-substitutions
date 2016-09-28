@@ -1,4 +1,5 @@
-import {escapeRegExp, reduce} from 'lodash';
+import escapeRegExp from 'lodash.escaperegexp';
+import reduce from 'lodash.reduce';
 
 export const openingSingleQuote = '\u2018'; // ‘
 export const closingSingleQuote = '\u2019'; // ’
