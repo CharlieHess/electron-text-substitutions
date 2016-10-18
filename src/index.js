@@ -323,13 +323,10 @@ function lastIndexOfWhitespace(value, fromIndex) {
  * @param  {String} newText       The text being inserted
  */
 function replaceText(element, {startIndex, endIndex}, newText) {
-  let textEvent = document.createEvent('TextEvent');
-  textEvent.initTextEvent('textInput', true, true, null, newText);
-
   setSelectionRange(element, startIndex, endIndex);
 
   d(`Replacing ${getElementText(element).substring(startIndex, endIndex)} with ${newText}`);
-  element.dispatchEvent(textEvent);
+  document.execCommand('insertText', false, newText);
 }
 
 /**
