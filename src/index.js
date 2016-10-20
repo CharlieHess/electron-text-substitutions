@@ -8,7 +8,7 @@ import 'rxjs/add/operator/mergeMap';
 import 'rxjs/add/operator/debounceTime';
 import {Observable} from 'rxjs/Observable';
 import {Subscription} from 'rxjs/Subscription';
-import {SerialSubscription} from './serial-subscription';
+import SerialSubscription from 'rxjs-serial-subscription';
 import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
   scrubInputString, formatReplacement, regExpReplacer, regExpReviver} from './regular-expressions';
 import {isUndoRedoEvent, isBackspaceEvent} from './keyboard-utils';
