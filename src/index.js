@@ -236,8 +236,14 @@ function getElementText(element) {
  */
 function addInputListener(element, replacementItems) {
   let ignoreEvent = false;
+  let composition = false;
 
   let inputListener = () => {
+    if (composition) {
+      d(`composition event is not completed, do not try substitution`);
+      return;
+    }
+
     if (ignoreEvent) return;
     ignoreEvent = true;
 
@@ -271,7 +277,7 @@ function addInputListener(element, replacementItems) {
   };
 
   let keyDownListener = (e) => {
-    if (isUndoRedoEvent(e) || isBackspaceEvent(e)) {
+    if (isUndoRedoEvent(e) || isBackspaceEvent(e) || composition) {
       d(`Ignoring keydown event from ${e.target.value}`);
       ignoreEvent = true;
     }
@@ -282,9 +288,16 @@ function addInputListener(element, replacementItems) {
   };
 
   let keyUpListener = () => {
-    ignoreEvent = false;
+    if (!composition) {
+      ignoreEvent = false;
+    }
   };
 
+  const compositionStartListener = () => composition = true;
+  const compositionEndListener = () => composition = false;
+
+  element.addEventListener('compositionstart', compositionStartListener, true);
+  element.addEventListener('compositionend', compositionEndListener, true);
   element.addEventListener('keydown', keyDownListener, true);
   element.addEventListener('paste', pasteListener, true);
   element.addEventListener('keyup', keyUpListener, true);
@@ -293,6 +306,8 @@ function addInputListener(element, replacementItems) {
   d(`Added input listener to ${element.id} matching against ${replacementItems.length} replacements`);
 
   return new Subscription(() => {
+    element.removeEventListener('compositionstart', compositionStartListener, true);
+    element.removeEventListener('compositionend', compositionEndListener, true);
     element.removeEventListener('keydown', keyDownListener);
     element.removeEventListener('paste', pasteListener);
     element.removeEventListener('keyup', keyUpListener);
