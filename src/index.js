@@ -294,7 +294,18 @@ function addInputListener(element, replacementItems) {
   };
 
   const compositionStartListener = () => composition = true;
-  const compositionEndListener = () => composition = false;
+  const compositionEndListener = () => {
+    composition = false;
+
+    //force validate substitution state after composition completes.
+    //in case of some IME (KR for example) compositon end event won't be triggered unless
+    //final consonant are typed, while char itself can written without final consonant.
+    //This'll makes initial substitution doesn't replace text since it's suppressed then
+    //next substitution try to attempt replace first char which haven't triggered at those moment.
+    //to avoid those, force trigger input validation as soon as composition end event fires
+    ignoreEvent = false;
+    inputListener();
+  };
 
   element.addEventListener('compositionstart', compositionStartListener, true);
   element.addEventListener('compositionend', compositionEndListener, true);
