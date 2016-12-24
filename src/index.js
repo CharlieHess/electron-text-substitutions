@@ -14,7 +14,7 @@ import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
 import {isUndoRedoEvent, isBackspaceEvent} from './keyboard-utils';
 
 const packageName = 'electron-text-substitutions';
-const d = require('debug-electron')(packageName);
+const d = require('debug')(packageName);
 
 const registerForPreferenceChangedIpcMessage = `${packageName}-register-renderer`;
 const unregisterForPreferenceChangedIpcMessage = `${packageName}-unregister-renderer`;
