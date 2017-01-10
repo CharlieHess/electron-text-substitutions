@@ -6,9 +6,9 @@ import some from 'lodash.some';
 import 'rxjs/add/observable/from';
 import 'rxjs/add/operator/mergeMap';
 import 'rxjs/add/operator/debounceTime';
-import {Observable} from 'rxjs/Observable';
 import {Subscription} from 'rxjs/Subscription';
 import SerialSubscription from 'rxjs-serial-subscription';
+import {readSystemTextPreferences, onPreferenceChanged} from './preference-helpers';
 import {getSubstitutionRegExp, getSmartQuotesRegExp, getSmartDashesRegExp,
   scrubInputString, formatReplacement, regExpReplacer, regExpReviver} from './regular-expressions';
 import {isUndoRedoEvent, isBackspaceEvent} from './keyboard-utils';
@@ -19,16 +19,6 @@ const d = require('debug')(packageName);
 const registerForPreferenceChangedIpcMessage = `${packageName}-register-renderer`;
 const unregisterForPreferenceChangedIpcMessage = `${packageName}-unregister-renderer`;
 const preferenceChangedIpcMessage = `${packageName}-preference-changed`;
-
-const userDefaultsTextSubstitutionsKey = 'NSUserDictionaryReplacementItems';
-const userDefaultsSmartQuotesKey = 'NSAutomaticQuoteSubstitutionEnabled';
-const userDefaultsSmartDashesKey = 'NSAutomaticDashSubstitutionEnabled';
-
-const textPreferenceChangedKeys = [
-  'IMKTextReplacementDidChangeNotification',
-  'NSAutomaticQuoteSubstitutionEnabledChanged',
-  'NSAutomaticDashSubstitutionEnabledChanged'
-];
 
 let ipcMain, ipcRenderer, systemPreferences;
 let replacementItems = null;
@@ -108,34 +98,11 @@ export function listenForPreferenceChanges() {
     delete registeredWebContents[sender.getId()];
   });
 
-  let notificationDisp = Observable.from(textPreferenceChangedKeys)
-    .flatMap((key) => observableForPreferenceNotification(key))
-    .debounceTime(1000)
-    .subscribe(notifyAllListeners);
-
   const ret = new Subscription();
-  ret.add(notificationDisp);
+  ret.add(onPreferenceChanged(notifyAllListeners));
   ret.add(new Subscription(() => ipcMain.removeAllListeners(registerForPreferenceChangedIpcMessage)));
   ret.add(new Subscription(() => ipcMain.removeAllListeners(unregisterForPreferenceChangedIpcMessage)));
   return ret;
-}
-
-/**
- * Creates an Observable that will emit when the given key in
- * `NSUserDefaults` changes.
- *
- * @param  {String} preferenceChangedKey  The key to listen for
- * @return {Subscription}                   A Subscription that will unsubscribe the listener
- */
-function observableForPreferenceNotification(preferenceChangedKey) {
-  return Observable.create((subj) => {
-    let subscriberId = systemPreferences.subscribeNotification(preferenceChangedKey, () => {
-      d(`Got a ${preferenceChangedKey}`);
-      subj.next(preferenceChangedKey);
-    });
-
-    return new Subscription(() => systemPreferences.unsubscribeNotification(subscriberId));
-  });
 }
 
 /**
@@ -161,14 +128,6 @@ function assignDisposableToListener(element, replacementItems, currentAttach = n
   currentAttach = currentAttach || new SerialSubscription();
   currentAttach.add(addInputListener(element, replacementItems));
   return currentAttach;
-}
-
-function readSystemTextPreferences() {
-  return {
-    substitutions: systemPreferences.getUserDefault(userDefaultsTextSubstitutionsKey, 'array') || [],
-    useSmartQuotes: systemPreferences.getUserDefault(userDefaultsSmartQuotesKey, 'boolean'),
-    useSmartDashes: systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean')
-  };
 }
 
 /**
