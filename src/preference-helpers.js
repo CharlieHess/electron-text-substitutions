@@ -39,9 +39,12 @@ export function readSystemTextPreferences() {
  * @return {Subscription}       Manages the event listener
  */
 export function onPreferenceChanged(callback) {
+  if (!process || !process.type === 'browser') throw new Error(`Not in an Electron browser context`);
+  if (process.platform !== 'darwin') throw new Error(`Only supported on macOS`);
+
   return Observable.from(textPreferenceChangedKeys)
     .mergeMap((key) => observableForPreferenceChanged(key))
-    .debounceTime(500)
+    .debounceTime(100)
     .subscribe(callback);
 }
 

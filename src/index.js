@@ -40,7 +40,7 @@ let registeredWebContents = {};
 export default function performTextSubstitution(element, preferenceOverrides = null) {
   if (!element || !element.addEventListener) throw new Error(`Element is null or not an EventTarget`);
   if (!process || !process.type === 'renderer') throw new Error(`Not in an Electron renderer context`);
-  if (process.platform !== 'darwin') throw new Error(`Only supported on OS X`);
+  if (process.platform !== 'darwin') throw new Error(`Only supported on macOS`);
 
   ipcRenderer = ipcRenderer || electron.ipcRenderer;
   systemPreferences = systemPreferences || electron.remote.systemPreferences;
@@ -82,7 +82,7 @@ export default function performTextSubstitution(element, preferenceOverrides = n
  */
 export function listenForPreferenceChanges() {
   if (!process || !process.type === 'browser') throw new Error(`Not in an Electron browser context`);
-  if (process.platform !== 'darwin') throw new Error(`Only supported on OS X`);
+  if (process.platform !== 'darwin') throw new Error(`Only supported on macOS`);
 
   ipcMain = ipcMain || electron.ipcMain;
   systemPreferences = systemPreferences || electron.systemPreferences;
