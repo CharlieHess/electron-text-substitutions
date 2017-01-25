@@ -36,6 +36,8 @@
     "debug": "^2.5.1",
     "lodash.escaperegexp": "^4.1.2",
     "lodash.foreach": "^4.5.0",
+    "lodash.isfunction": "^3.0.8",
+    "lodash.isobject": "^3.0.2",
     "lodash.reduce": "^4.6.0",
     "lodash.some": "^4.6.0",
     "lodash.values": "^4.3.0",
