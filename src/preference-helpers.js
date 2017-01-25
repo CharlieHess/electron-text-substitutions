@@ -25,10 +25,23 @@ const textPreferenceChangedKeys = [
  * @return {Object}.useSmartDashes  True if smart dashes are enabled
  */
 export function readSystemTextPreferences() {
+  let substitutions = systemPreferences.getUserDefault(userDefaultsTextSubstitutionsKey, 'array') || [];
+
+  if (process.type === 'renderer') {
+    const noRemoteObjects = [];
+    substitutions.forEach((sub) => {
+      noRemoteObjects.push({ ...sub });
+    });
+    substitutions = noRemoteObjects;
+  }
+
+  const useSmartQuotes = systemPreferences.getUserDefault(userDefaultsSmartQuotesKey, 'boolean');
+  const useSmartDashes = systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean');
+
   return {
-    substitutions: systemPreferences.getUserDefault(userDefaultsTextSubstitutionsKey, 'array') || [],
-    useSmartQuotes: systemPreferences.getUserDefault(userDefaultsSmartQuotesKey, 'boolean'),
-    useSmartDashes: systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean')
+    substitutions,
+    useSmartQuotes,
+    useSmartDashes
   };
 }
 
