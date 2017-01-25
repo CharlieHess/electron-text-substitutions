@@ -1,6 +1,6 @@
 {
   "name": "electron-text-substitutions",
-  "version": "1.4.10",
+  "version": "1.4.11",
   "description": "Substitute text in an input field based on OS X System Preferences",
   "main": "lib/index.js",
   "scripts": {
