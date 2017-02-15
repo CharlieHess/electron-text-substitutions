@@ -4,8 +4,10 @@ import forEach from 'lodash.foreach';
 import some from 'lodash.some';
 
 import 'rxjs/add/observable/from';
+import 'rxjs/add/observable/fromEvent';
 import 'rxjs/add/operator/mergeMap';
 import 'rxjs/add/operator/debounceTime';
+import {Observable} from 'rxjs/Observable';
 import {Subscription} from 'rxjs/Subscription';
 import SerialSubscription from 'rxjs-serial-subscription';
 import {readSystemTextPreferences, onPreferenceChanged} from './preference-helpers';
@@ -62,15 +64,25 @@ export default function performTextSubstitution(element, preferenceOverrides = n
     replacementItems = getReplacementItems(readSystemTextPreferences());
   }
 
-  let currentAttach = assignDisposableToListener(element, replacementItems);
+  let currentAttach = addInputListener(element, replacementItems);
+  const parentSubscription = new Subscription();
+  parentSubscription.add(currentAttach);
 
-  ipcRenderer.on(preferenceChangedIpcMessage, (e, serializedItems) => {
+  const preferenceChangedListener = (serializedItems) => {
     d(`User modified text preferences, reattaching listener`);
     replacementItems = JSON.parse(serializedItems, regExpReviver);
-    assignDisposableToListener(element, replacementItems, currentAttach);
-  });
 
-  return currentAttach;
+    parentSubscription.remove(currentAttach);
+    currentAttach.unsubscribe();
+    currentAttach = addInputListener(element, replacementItems);
+    parentSubscription.add(currentAttach);
+  };
+
+  parentSubscription.add(
+    Observable.fromEvent(ipcRenderer, preferenceChangedIpcMessage, (e, items) => items)
+      .subscribe(preferenceChangedListener));
+
+  return parentSubscription;
 }
 
 /**
@@ -122,12 +134,6 @@ function notifyAllListeners() {
       sender.send(preferenceChangedIpcMessage, serializedItems);
     }
   });
-}
-
-function assignDisposableToListener(element, replacementItems, currentAttach = null) {
-  currentAttach = currentAttach || new SerialSubscription();
-  currentAttach.add(addInputListener(element, replacementItems));
-  return currentAttach;
 }
 
 /**

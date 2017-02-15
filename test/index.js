@@ -143,7 +143,7 @@ describe('the performTextSubstitution method', () => {
     input.selectionStart = 0;
     input.selectionEnd = 0;
 
-    performTextSubstitution(input, {
+    subscription = performTextSubstitution(input, {
       substitutions: [{ replace: 'greetings', with: 'Hello-- my name is \'Milo,\' how do you do?' }],
       useSmartQuotes: true,
       useSmartDashes: true
