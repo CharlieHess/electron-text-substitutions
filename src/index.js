@@ -18,7 +18,7 @@ const d = require('debug')(packageName);
 
 const registerForPreferenceChangedIpcMessage = `${packageName}-register-renderer`;
 const unregisterForPreferenceChangedIpcMessage = `${packageName}-unregister-renderer`;
-const preferenceChangedIpcMessage = `${packageName}-preference-changed`;
+export const preferenceChangedIpcMessage = `${packageName}-preference-changed`;
 
 let ipcMain, ipcRenderer, systemPreferences;
 let replacementItems = null;

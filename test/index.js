@@ -1,7 +1,8 @@
 import assert from 'assert';
+import {ipcRenderer} from 'electron';
 import {Observable} from 'rxjs';
 
-import performTextSubstitution from '../src';
+import performTextSubstitution, {preferenceChangedIpcMessage} from '../src';
 
 function inputText(inputElement, text) {
   let textEvent = document.createEvent('TextEvent');
@@ -15,7 +16,7 @@ function typeText(inputElement, text) {
 }
 
 describe('the performTextSubstitution method', () => {
-  let input;
+  let input, subscription;
 
   beforeEach(() => {
     input = document.createElement('input');
@@ -24,6 +25,7 @@ describe('the performTextSubstitution method', () => {
   });
 
   afterEach(() => {
+    if (subscription) subscription.unsubscribe();
     document.body.removeChild(input);
     input = null;
   });
@@ -33,7 +35,7 @@ describe('the performTextSubstitution method', () => {
   });
 
   it('should replace text after an input event', () => {
-    performTextSubstitution(input, {
+    subscription = performTextSubstitution(input, {
       substitutions: [{ replace: 'shrug', with: '¯\\_(ツ)_/¯' }]
     });
 
@@ -42,7 +44,7 @@ describe('the performTextSubstitution method', () => {
   });
 
   it('should stop replacing when unsubscribed', () => {
-    let disposable = performTextSubstitution(input, {
+    subscription = performTextSubstitution(input, {
       substitutions: [{ replace: 'disapproval', with: 'ಠ_ಠ' }]
     });
 
@@ -51,14 +53,14 @@ describe('the performTextSubstitution method', () => {
 
     inputText(input, 'disapproval ');
     assert.equal(input.value, 'everything I do deserves… ಠ_ಠ ');
-    disposable.unsubscribe();
+    subscription.unsubscribe();
 
     inputText(input, 'and more disapproval.');
     assert.equal(input.value, 'everything I do deserves… ಠ_ಠ and more disapproval.');
   });
 
   it('should handle multiple substitutions', () => {
-    performTextSubstitution(input, {
+    subscription = performTextSubstitution(input, {
       substitutions: [
         { replace: 'disapproval', with: 'ಠ_ಠ' },
         { replace: 'shrug', with: '¯\\_(ツ)_/¯' }
@@ -73,7 +75,7 @@ describe('the performTextSubstitution method', () => {
   });
 
   it('should only substitute word preceding the cursor', () => {
-    performTextSubstitution(input, {
+    subscription = performTextSubstitution(input, {
       substitutions: [{ replace: 'shrug', with: '¯\\_(ツ)_/¯' }]
     });
 
@@ -82,7 +84,7 @@ describe('the performTextSubstitution method', () => {
   });
 
   it('should handle the man known as shinypb', () => {
-    performTextSubstitution(input, {
+    subscription = performTextSubstitution(input, {
       substitutions: [
         { replace: "(tm)",  with: "\u2122" },
         { replace: "....",  with: "\u2026" },
@@ -104,7 +106,7 @@ describe('the performTextSubstitution method', () => {
   });
 
   it('should handle the infamous lbo', () => {
-    performTextSubstitution(input, {
+    subscription = performTextSubstitution(input, {
       substitutions: [
         { replace: "->", with: "→" },
         { replace: "<-", with: "←" },
@@ -118,7 +120,7 @@ describe('the performTextSubstitution method', () => {
   });
 
   it('should replace quotes & dashes, if enabled', () => {
-    performTextSubstitution(input, {
+    subscription = performTextSubstitution(input, {
       substitutions: [],
       useSmartQuotes: true,
       useSmartDashes: true
@@ -129,13 +131,13 @@ describe('the performTextSubstitution method', () => {
   });
 
   it('should replace quotes & dashes within user dictionary replacements, if enabled', () => {
-    let disposable = performTextSubstitution(input, {
+    subscription = performTextSubstitution(input, {
       substitutions: [{ replace: 'greetings', with: 'Hello-- my name is \'Milo,\' how do you do?' }]
     });
 
     inputText(input, 'greetings ');
     assert.equal(input.value, 'Hello-- my name is \'Milo,\' how do you do? ');
-    disposable.unsubscribe();
+    subscription.unsubscribe();
 
     input.value = '';
     input.selectionStart = 0;
@@ -149,5 +151,19 @@ describe('the performTextSubstitution method', () => {
 
     inputText(input, 'greetings ');
     assert.equal(input.value, 'Hello— my name is ‘Milo,’ how do you do? ');
+  });
+
+  it('should unhook the preference changed message when unsubscribed', () => {
+    const sub1 = performTextSubstitution(input, { substitutions: [] });
+    const sub2 = performTextSubstitution(input, { substitutions: [] });
+    const sub3 = performTextSubstitution(input, { substitutions: [] });
+
+    assert.equal(ipcRenderer.listenerCount(preferenceChangedIpcMessage), 3);
+
+    sub1.unsubscribe();
+    sub2.unsubscribe();
+    sub3.unsubscribe();
+
+    assert.equal(ipcRenderer.listenerCount(preferenceChangedIpcMessage), 0);
   });
 });
