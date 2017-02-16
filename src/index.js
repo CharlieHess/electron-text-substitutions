@@ -52,10 +52,12 @@ export default function performTextSubstitution(element, preferenceOverrides = n
 
   ipcRenderer.send(registerForPreferenceChangedIpcMessage);
 
-  window.addEventListener('beforeunload', () => {
+  const unloadListener = () => {
     d(`Window unloading, unregister any listeners`);
     ipcRenderer.send(unregisterForPreferenceChangedIpcMessage);
-  });
+  };
+
+  window.addEventListener('beforeunload', unloadListener);
 
   if (preferenceOverrides) {
     replacementItems = getReplacementItems(preferenceOverrides);
@@ -64,24 +66,23 @@ export default function performTextSubstitution(element, preferenceOverrides = n
   }
 
   let currentAttach = addInputListener(element, replacementItems);
-  const parentSubscription = new Subscription();
-  parentSubscription.add(currentAttach);
 
   const preferenceChangedListener = (serializedItems) => {
     d(`User modified text preferences, reattaching listener`);
     replacementItems = JSON.parse(serializedItems, regExpReviver);
 
-    parentSubscription.remove(currentAttach);
     currentAttach.unsubscribe();
     currentAttach = addInputListener(element, replacementItems);
-    parentSubscription.add(currentAttach);
   };
 
-  parentSubscription.add(
-    Observable.fromEvent(ipcRenderer, preferenceChangedIpcMessage, (e, items) => items)
-      .subscribe(preferenceChangedListener));
+  ipcRenderer.on(preferenceChangedIpcMessage, preferenceChangedListener);
 
-  return parentSubscription;
+  return new Subscription(() => {
+    d(`Unsubscribing all listeners for ${element.id}`);
+    currentAttach.unsubscribe();
+    ipcRenderer.removeListener(preferenceChangedIpcMessage, preferenceChangedListener);
+    window.removeEventListener('beforeunload', unloadListener);
+  });
 }
 
 /**
