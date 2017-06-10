@@ -1,7 +1,5 @@
 import electron from 'electron';
-import values from 'lodash.values';
-import forEach from 'lodash.foreach';
-import some from 'lodash.some';
+import {values, forEach, some} from 'lodash';
 
 import 'rxjs/add/observable/from';
 import 'rxjs/add/observable/fromEvent';

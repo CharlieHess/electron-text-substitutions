@@ -1,5 +1,4 @@
-import isObject from 'lodash.isobject';
-import isFunction from 'lodash.isfunction';
+import {isObject, isFunction} from 'lodash';
 
 /**
  * Determines if an object is, or contains, an Electron remote object.
