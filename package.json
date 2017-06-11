@@ -33,7 +33,6 @@
     "mocha": "^2.5.3"
   },
   "dependencies": {
-    "babel-runtime": "^6.9.2",
     "debug": "^2.5.1",
     "lodash": "^4.17.4",
     "rxjs": "^5.1.1"
