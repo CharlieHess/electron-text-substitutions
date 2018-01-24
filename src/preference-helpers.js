@@ -25,8 +25,6 @@ const textPreferenceChangedKeys = [
  * @return {Object}.useSmartDashes  True if smart dashes are enabled
  */
 export function readSystemTextPreferences() {
-  if (process.type === 'renderer') throw new Error('Not in an Electron browser context');
-
   let substitutions = systemPreferences.getUserDefault(userDefaultsTextSubstitutionsKey, 'array') || [];
   const useSmartQuotes = systemPreferences.getUserDefault(userDefaultsSmartQuotesKey, 'boolean');
   const useSmartDashes = systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean');
