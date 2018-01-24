@@ -1,12 +1,12 @@
 {
   "name": "electron-text-substitutions",
-  "version": "1.4.14",
+  "version": "1.4.15",
   "description": "Substitute text in an input field based on OS X System Preferences",
   "main": "lib/index.js",
   "scripts": {
     "compile": "babel -d lib/ src/",
     "prepublish": "npm run compile",
-    "test": "electron-mocha --renderer ./test"
+    "test": "electron-mocha ./test"
   },
   "repository": {
     "type": "git",

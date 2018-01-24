@@ -25,16 +25,9 @@ const textPreferenceChangedKeys = [
  * @return {Object}.useSmartDashes  True if smart dashes are enabled
  */
 export function readSystemTextPreferences() {
+  if (process.type === 'renderer') throw new Error('Not in an Electron browser context');
+
   let substitutions = systemPreferences.getUserDefault(userDefaultsTextSubstitutionsKey, 'array') || [];
-
-  if (process.type === 'renderer') {
-    const noRemoteObjects = [];
-    substitutions.forEach((sub) => {
-      noRemoteObjects.push({ ...sub });
-    });
-    substitutions = noRemoteObjects;
-  }
-
   const useSmartQuotes = systemPreferences.getUserDefault(userDefaultsSmartQuotesKey, 'boolean');
   const useSmartDashes = systemPreferences.getUserDefault(userDefaultsSmartDashesKey, 'boolean');
 
@@ -43,6 +36,14 @@ export function readSystemTextPreferences() {
     useSmartQuotes,
     useSmartDashes
   };
+}
+
+/**
+ * If we've required this module remotely, we want to serialize the text
+ * preferences first, to avoid any remote objects in the result.
+ */
+export function readSystemTextPreferencesJSON() {
+  return JSON.stringify(readSystemTextPreferences());
 }
 
 /**
