@@ -98,14 +98,13 @@ export function listenForPreferenceChanges() {
   systemPreferences = systemPreferences || electron.systemPreferences;
 
   ipcMain.on(registerForPreferenceChangedIpcMessage, ({sender}) => {
-    let id = sender.getId();
-    d(`Registering webContents ${id} for preference changes`);
-    registeredWebContents[id] = { id, sender };
+    d(`Registering webContents ${sender.id} for preference changes`);
+    registeredWebContents[sender.id] = sender;
   });
 
   ipcMain.on(unregisterForPreferenceChangedIpcMessage, ({sender}) => {
-    d(`Unregistering webContents ${sender.getId()}`);
-    delete registeredWebContents[sender.getId()];
+    d(`Unregistering webContents ${sender.id}`);
+    delete registeredWebContents[sender.id];
   });
 
   const ret = new Subscription();
@@ -124,10 +123,10 @@ function notifyAllListeners() {
   let replacementItems = getReplacementItems(textPreferences);
   let serializedItems = JSON.stringify(replacementItems, regExpReplacer);
 
-  forEach(values(registeredWebContents), ({id, sender}) => {
+  forEach(values(registeredWebContents), (sender) => {
     if (sender.isDestroyed() || sender.isCrashed()) {
-      d(`WebContents ${id} is gone, removing it`);
-      delete registeredWebContents[id];
+      d(`WebContents ${sender.id} is gone, removing it`);
+      delete registeredWebContents[sender.id];
     } else {
       sender.send(preferenceChangedIpcMessage, serializedItems);
     }
