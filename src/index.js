@@ -65,7 +65,7 @@ export default function performTextSubstitution(element, preferenceOverrides = n
 
   let currentAttach = addInputListener(element, replacementItems);
 
-  const preferenceChangedListener = (serializedItems) => {
+  const preferenceChangedListener = (ev, serializedItems) => {
     d(`User modified text preferences, reattaching listener`);
     replacementItems = JSON.parse(serializedItems, regExpReviver);
 
